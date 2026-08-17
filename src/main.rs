@@ -1,18 +1,10 @@
 #[allow(unused)]
+use std::io;
+
 mod application;
+mod renderer;
 
-struct Renderer3D;
-
-impl application::Application for Renderer3D {
-    fn on_user_start(&mut self, _ctx: &mut application::Context) -> bool {
-        true
-    }
-
-    fn on_user_update(&mut self, _ctx: &mut application::Context) -> bool {
-        true
-    }
-}
-
-fn main() {
-    println!("Hello, world!");
+fn main() -> io::Result<()> {
+    let mut runner = application::ConsoleRunner::new(renderer::App)?;
+    runner.run()
 }

@@ -14,7 +14,7 @@ pub struct Cell {
 
 impl Default for CellStyle {
     fn default() -> Self {
-        Self { fg: Color::White, bg: Color::Black }
+        Self { fg: Color::White, bg: Color::Reset }
     }
 }
 

@@ -96,7 +96,7 @@ impl Context {
         }
     }
 
-    fn present(&mut self, out: &mut impl Write) -> io::Result<()> {
+    pub fn present(&mut self, out: &mut impl Write) -> io::Result<()> {
         for y in 0..self.height {
             for x in 0..self.width {
                 let i = (y as usize) * (self.width as usize) + (x as usize);
