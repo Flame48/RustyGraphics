@@ -4,6 +4,7 @@ pub mod context;
 use std::{ io::{ self }, time::Duration };
 use crossterm::{
     cursor::{ Hide, Show },
+    event::{ self, Event, KeyCode },
     execute,
     terminal::{ EnterAlternateScreen, LeaveAlternateScreen },
 };
@@ -61,9 +62,29 @@ impl<T: Application> ConsoleRunner<T> {
         }
 
         loop {
-            if self.should_quit()? {
+            let events = self.poll_events()?;
+
+            let mut should_quit = false;
+
+            for event in events {
+                match event {
+                    Event::Key(k) => {
+                        if k.code == KeyCode::Char('q') {
+                            should_quit = true;
+                            break;
+                        }
+                    }
+                    Event::Resize(new_w, new_h) => {
+                        self.ctx.resize(new_w, new_h);
+                    }
+                    _ => {}
+                }
+            }
+
+            if should_quit {
                 break;
             }
+
             if !self.app.on_user_update(&mut self.ctx) {
                 break;
             }
@@ -73,16 +94,11 @@ impl<T: Application> ConsoleRunner<T> {
         Ok(())
     }
 
-    fn should_quit(&self) -> io::Result<bool> {
-        use crossterm::event::{ self, Event, KeyCode };
-
+    fn poll_events(&self) -> io::Result<Vec<Event>> {
+        let mut events: Vec<Event> = Vec::default();
         while event::poll(Duration::ZERO)? {
-            if let Event::Key(k) = event::read()? {
-                if k.code == KeyCode::Char('q') {
-                    return Ok(true);
-                }
-            }
+            events.push(event::read()?);
         }
-        Ok(false)
+        Ok(events)
     }
 }

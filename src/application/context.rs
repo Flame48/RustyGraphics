@@ -88,28 +88,54 @@ impl Context {
 
     pub fn put_str(&mut self, s: &str, style: CellStyle, x: u16, y: u16) {
         for (i, ch) in s.chars().enumerate() {
-            self.put(Cell { ch, style: CellStyle::default() }, x + (i as u16), y);
+            self.put(Cell { ch, style: style }, x + (i as u16), y);
         }
     }
 
     pub fn present(&mut self, out: &mut impl Write) -> io::Result<()> {
+        let mut last_fg: Option<crossterm::style::Color> = None;
+        let mut last_bg: Option<crossterm::style::Color> = None;
+        let mut cursor: Option<(u16, u16)> = None;
+
         for y in 0..self.height {
             for x in 0..self.width {
                 let i = (y as usize) * (self.width as usize) + (x as usize);
-                if self.back[i] != self.front[i] {
-                    let cell = self.back[i];
-                    queue!(
-                        out,
-                        MoveTo(x, y),
-                        SetForegroundColor(cell.style.fg),
-                        SetBackgroundColor(cell.style.bg),
-                        Print(cell.ch)
-                    )?;
+
+                if self.back[i] == self.front[i] {
+                    continue;
                 }
+
+                let cell = self.back[i];
+
+                if cursor != Some((x, y)) {
+                    queue!(out, MoveTo(x, y))?;
+                }
+
+                if last_fg != Some(cell.style.fg) {
+                    queue!(out, SetForegroundColor(cell.style.fg))?;
+                    last_fg = Some(cell.style.fg);
+                }
+
+                if last_bg != Some(cell.style.bg) {
+                    queue!(out, SetBackgroundColor(cell.style.bg))?;
+                    last_bg = Some(cell.style.bg);
+                }
+
+                queue!(out, Print(cell.ch))?;
+
+                cursor = Some((x + 1, y));
             }
         }
         out.flush()?;
         std::mem::swap(&mut self.front, &mut self.back);
         Ok(())
+    }
+
+    pub fn resize(&mut self, width: u16, height: u16) {
+        self.width = width;
+        self.height = height;
+        let len = (width as usize) * (height as usize);
+        self.front = vec![Cell::default(); len];
+        self.back = vec![Cell::default(); len];
     }
 }
