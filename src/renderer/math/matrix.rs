@@ -1,5 +1,19 @@
 pub struct Matrix<const M: usize, const N: usize> {
-    data: [[f32; N]; M],
+    pub data: [[f32; N]; M],
+}
+
+pub type ColMat<const M: usize> = Matrix<M, 1>;
+pub type RowMat<const N: usize> = Matrix<1, N>;
+pub type SqMat<const S: usize> = Matrix<S, S>;
+
+impl<const M: usize> SqMat<M> {
+    pub fn identity() -> Self {
+        let mut result = SqMat::<M>::new();
+        for i in 0..M {
+            result.data[i][i] = 1.0;
+        }
+        result
+    }
 }
 
 impl<const M: usize, const N: usize> Matrix<M, N> {
@@ -17,6 +31,18 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
 
     pub fn set(&mut self, row: usize, col: usize, value: f32) {
         self.data[row][col] = value;
+    }
+
+    pub fn row(&self, row: usize) -> [f32; N] {
+        return self.data[row];
+    }
+
+    pub fn col(&self, col: usize) -> [f32; M] {
+        let mut res = [0.0; M];
+        for i in 0..M {
+            res[i] = self.data[i][col];
+        }
+        res
     }
 
     fn apply(&self, other: &Matrix<M, N>, f: impl Fn(f32, f32) -> f32) -> Matrix<M, N> {
@@ -125,5 +151,57 @@ impl<const M: usize, const N: usize> std::ops::Index<(usize, usize)> for Matrix<
 impl<const M: usize, const N: usize> std::ops::IndexMut<(usize, usize)> for Matrix<M, N> {
     fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut f32 {
         &mut self.data[row][col]
+    }
+}
+
+impl<const M: usize> ColMat<M> {
+    pub fn serial_col(&self) -> [f32; M] {
+        self.col(0)
+    }
+}
+
+impl<const N: usize> RowMat<N> {
+    pub fn serial_row(&self) -> [f32; N] {
+        self.row(0)
+    }
+}
+
+impl SqMat<1> {
+    pub fn item(&self) -> f32 {
+        self.get(0, 0)
+    }
+}
+
+impl SqMat<4> {
+    pub fn scale(s: [f32; 3]) -> Self {
+        Self::from_data([
+            [s[0], 0.0, 0.0, 0.0],
+            [0.0, s[1], 0.0, 0.0],
+            [0.0, 0.0, s[2], 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ])
+    }
+    pub fn translation(p: [f32; 3]) -> Self {
+        Self::from_data([
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [p[0], p[1], p[2], 1.0],
+        ])
+    }
+
+    pub fn rotation(q: [f32; 4]) -> Self {
+        let [x, y, z, w] = q;
+        let (x2, y2, z2) = (x + x, y + y, z + z);
+        let (xx, xy, xz) = (x * x2, x * y2, x * z2);
+        let (yy, yz, zz) = (y * y2, y * z2, z * z2);
+        let (wx, wy, wz) = (w * x2, w * y2, w * z2);
+
+        Self::from_data([
+            [1.0 - (yy + zz), xy + wz, xz - wy, 0.0],
+            [xy - wz, 1.0 - (xx + zz), yz + wx, 0.0],
+            [xz + wy, yz - wx, 1.0 - (xx + yy), 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ])
     }
 }
