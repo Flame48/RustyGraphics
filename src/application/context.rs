@@ -1,33 +1,11 @@
+use crate::application::cell::{ Cell, CellStyle };
+
 use std::io::{ self, Write };
 use crossterm::{
     cursor::MoveTo,
     queue,
     style::{ Color, Print, SetBackgroundColor, SetForegroundColor },
 };
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct CellStyle {
-    fg: Color,
-    bg: Color,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Cell {
-    ch: char,
-    style: CellStyle,
-}
-
-impl Default for CellStyle {
-    fn default() -> Self {
-        Self { fg: Color::White, bg: Color::Black }
-    }
-}
-
-impl Default for Cell {
-    fn default() -> Self {
-        Self { ch: ' ', style: CellStyle::default() }
-    }
-}
 
 /// Console screen context. Exposes operations for manipulating the display, eg. fill, put, clear, etc.
 pub struct Context {
@@ -138,23 +116,4 @@ impl Context {
         std::mem::swap(&mut self.front, &mut self.back);
         Ok(())
     }
-}
-
-/// Lifecycle hooks for the application
-pub trait Application {
-    fn on_user_start(&mut self, ctx: &mut Context) -> bool;
-
-    fn on_user_update(&mut self, ctx: &mut Context) -> bool;
-}
-
-/// Manages the application lifecycle, user input / display, etc.
-/// while running the provided app.
-pub struct ConsoleRunner<T: Application> {
-    app: T,
-    context: Context,
-}
-
-impl<T: Application> ConsoleRunner<T> {
-    /// Begins application
-    fn run(&mut self) {}
 }
