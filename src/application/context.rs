@@ -1,11 +1,7 @@
 use crate::application::cell::{ Cell, CellStyle };
 
 use std::io::{ self, Write };
-use crossterm::{
-    cursor::MoveTo,
-    queue,
-    style::{ Color, Print, SetBackgroundColor, SetForegroundColor },
-};
+use crossterm::{ cursor::MoveTo, queue, style::{ Print, SetBackgroundColor, SetForegroundColor } };
 
 /// Console screen context. Exposes operations for manipulating the display, eg. fill, put, clear, etc.
 pub struct Context {
