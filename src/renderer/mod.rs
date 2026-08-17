@@ -1,6 +1,7 @@
 use crate::application::{ Cell, Application, Context, cell::CellStyle };
 
 mod math;
+mod scene;
 
 pub struct App;
 
