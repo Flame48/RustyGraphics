@@ -78,6 +78,12 @@ impl Context {
         }
     }
 
+    pub fn triangle(&mut self, cell: Cell, p1: [i32; 2], p2: [i32; 2], p3: [i32; 2]) {
+        self.line(cell, p1[0], p1[1], p2[0], p2[1]);
+        self.line(cell, p2[0], p2[1], p3[0], p3[1]);
+        self.line(cell, p3[0], p3[1], p1[0], p1[1]);
+    }
+
     pub fn width(&self) -> u16 {
         self.width
     }

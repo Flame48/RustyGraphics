@@ -2,9 +2,9 @@
 use std::io;
 
 mod application;
-mod renderer;
+mod scene;
 
 fn main() -> io::Result<()> {
-    let mut runner = application::ConsoleRunner::new(renderer::App)?;
+    let mut runner = application::ConsoleRunner::new(scene::App::new())?;
     runner.run()
 }

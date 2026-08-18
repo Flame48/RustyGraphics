@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub struct Matrix<const M: usize, const N: usize> {
     pub data: [[f32; N]; M],
 }
@@ -5,6 +6,8 @@ pub struct Matrix<const M: usize, const N: usize> {
 pub type ColMat<const M: usize> = Matrix<M, 1>;
 pub type RowMat<const N: usize> = Matrix<1, N>;
 pub type SqMat<const S: usize> = Matrix<S, S>;
+
+pub type Quaternion = RowMat<4>;
 
 impl<const M: usize> SqMat<M> {
     pub fn identity() -> Self {
@@ -45,8 +48,8 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
         res
     }
 
-    fn apply(&self, other: &Matrix<M, N>, f: impl Fn(f32, f32) -> f32) -> Matrix<M, N> {
-        let mut result = Matrix::<M, N>::new();
+    pub fn apply(&self, other: &Matrix<M, N>, f: impl Fn(f32, f32) -> f32) -> Self {
+        let mut result = Self::new();
         for i in 0..M {
             for j in 0..N {
                 result.data[i][j] = f(self.data[i][j], other.data[i][j]);
@@ -55,12 +58,34 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
         result
     }
 
-    fn apply_to(&mut self, other: &Matrix<M, N>, f: impl Fn(f32, f32) -> f32) {
+    pub fn apply_to(&mut self, other: &Matrix<M, N>, f: impl Fn(f32, f32) -> f32) {
         for i in 0..M {
             for j in 0..N {
                 self.data[i][j] = f(self.data[i][j], other.data[i][j]);
             }
         }
+    }
+
+    pub fn map(&self, f: impl Fn(f32) -> f32) -> Self {
+        let mut result = Self::new();
+        for i in 0..M {
+            for j in 0..N {
+                result.data[i][j] = f(self.data[i][j]);
+            }
+        }
+        result
+    }
+
+    pub fn map_to(&mut self, f: impl Fn(f32) -> f32) {
+        for i in 0..M {
+            for j in 0..N {
+                self.data[i][j] = f(self.data[i][j]);
+            }
+        }
+    }
+
+    pub fn sum(&self) -> f32 {
+        self.data.as_flattened().iter().sum()
     }
 
     pub fn mul<const S: usize>(&self, other: &Matrix<N, S>) -> Matrix<M, S> {
@@ -158,11 +183,43 @@ impl<const M: usize> ColMat<M> {
     pub fn serial_col(&self) -> [f32; M] {
         self.col(0)
     }
+
+    pub fn mag_col(&self) -> f32 {
+        self.map(|x| x * x)
+            .sum()
+            .sqrt()
+    }
+
+    pub fn norm_col(&self) -> Self {
+        let mag = self.mag_col();
+        self.map(|x| x / mag)
+    }
+
+    pub fn norm_col_to(&mut self) {
+        let mag = self.mag_col();
+        self.map_to(|x| x / mag)
+    }
 }
 
 impl<const N: usize> RowMat<N> {
     pub fn serial_row(&self) -> [f32; N] {
         self.row(0)
+    }
+
+    pub fn mag_row(&self) -> f32 {
+        self.map(|x| x * x)
+            .sum()
+            .sqrt()
+    }
+
+    pub fn norm_row(&self) -> Self {
+        let mag = self.mag_row();
+        self.map(|x| x / mag)
+    }
+
+    pub fn norm_row_to(&mut self) {
+        let mag = self.mag_row();
+        self.map_to(|x| x / mag)
     }
 }
 
@@ -203,5 +260,94 @@ impl SqMat<4> {
             [xz + wy, yz - wx, 1.0 - (xx + yy), 0.0],
             [0.0, 0.0, 0.0, 1.0],
         ])
+    }
+}
+
+impl RowMat<3> {
+    #[inline(always)]
+    pub fn x(&self) -> f32 {
+        self.data[0][0]
+    }
+    #[inline(always)]
+    pub fn y(&self) -> f32 {
+        self.data[0][1]
+    }
+    #[inline(always)]
+    pub fn z(&self) -> f32 {
+        self.data[0][2]
+    }
+}
+
+impl Quaternion {
+    #[inline(always)]
+    pub fn w(&self) -> f32 {
+        self.data[0][0]
+    }
+
+    #[inline(always)]
+    pub fn x(&self) -> f32 {
+        self.data[0][1]
+    }
+
+    #[inline(always)]
+    pub fn y(&self) -> f32 {
+        self.data[0][2]
+    }
+
+    #[inline(always)]
+    pub fn z(&self) -> f32 {
+        self.data[0][3]
+    }
+
+    #[inline(always)]
+    pub fn wxyz(&self) -> (f32, f32, f32, f32) {
+        (self.w(), self.x(), self.y(), self.z())
+    }
+
+    pub fn to_quant_matrix(&self) -> SqMat<4> {
+        let (w, x, y, z) = self.wxyz();
+        SqMat::<4>::from_data([
+            [w, x, y, z],
+            [-x, w, -z, y],
+            [-y, z, w, -x],
+            [-z, -y, x, w],
+        ])
+    }
+
+    pub fn hamiltonion_quaternion_mul(&self, other: &Self) -> Self {
+        self.mul(&other.to_quant_matrix())
+    }
+
+    pub fn hamiltonion_quaternion_mul_mut(&mut self, other: &Self) {
+        self.clone_from(&self.mul(&other.to_quant_matrix()));
+    }
+
+    pub fn rotate(&self, axis: &RowMat<3>, by: f32) -> Self {
+        let axis = axis.norm_row();
+        let half_theta = by * 0.5;
+        let q_ax = Quaternion::from_data([
+            [
+                half_theta.cos(),
+                axis.x() * half_theta.sin(),
+                axis.y() * half_theta.sin(),
+                axis.z() * half_theta.sin(),
+            ],
+        ]);
+        return self.hamiltonion_quaternion_mul(&q_ax).norm_row();
+    }
+
+    pub fn rotate_mut(&mut self, axis: &RowMat<3>, by: f32) {
+        let axis = axis.norm_row();
+        let half_theta = by * 0.5;
+        let q_ax = Quaternion::from_data([
+            [
+                half_theta.cos(),
+                axis.x() * half_theta.sin(),
+                axis.y() * half_theta.sin(),
+                axis.z() * half_theta.sin(),
+            ],
+        ]);
+        self.hamiltonion_quaternion_mul_mut(&q_ax);
+        self.norm_row_to();
     }
 }
