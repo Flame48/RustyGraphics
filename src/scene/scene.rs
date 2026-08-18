@@ -30,9 +30,9 @@ impl Default for NodeProperties {
     }
 }
 
-pub struct Node { // Equal to id if root
+pub struct Node {
     pub id: NodeId,
-    pub parent_id: NodeId,
+    pub parent_id: NodeId, // Equal to id if root
     pub props: NodeProperties,
     pub data: NodeData,
     pub children_ids: Vec<NodeId>,
