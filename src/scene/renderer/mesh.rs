@@ -1,4 +1,4 @@
-use crate::scene::math::matrix::Matrix;
+use crate::scene::math::matrix::{ Matrix, SqMat };
 
 pub struct Triangle {
     verts: Matrix<3, 4>,
@@ -12,6 +12,12 @@ impl Triangle {
                 data: [to_homogeneous(p1), to_homogeneous(p2), to_homogeneous(p3)],
             },
         }
+    }
+
+    pub fn transform(&self, transform: SqMat<4>) -> Self {
+        let mut verts = self.verts * transform;
+        verts.normalize_homogenous_mut();
+        Self { verts }
     }
 }
 
@@ -52,6 +58,14 @@ impl Mesh {
             .map(|&[a, b, c]| Triangle::new(v[a], v[b], v[c]))
             .collect();
 
+        Self { tris }
+    }
+
+    pub fn transform(&self, transform: SqMat<4>) -> Self {
+        let tris = self.tris
+            .iter()
+            .map(|t| t.transform(transform))
+            .collect();
         Self { tris }
     }
 }

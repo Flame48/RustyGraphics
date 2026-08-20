@@ -19,25 +19,31 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut scene = Scene::new();
-        scene.graph.insert(NodeData::Mesh(Mesh::construct_cube()));
+        scene.insert(NodeData::Mesh(Mesh::construct_cube()));
 
-        let camera = scene.graph.insert(NodeData::Camera(Camera::new(1, 1, PI / 6.0, 1.0, 9.0)));
+        let camera = scene.insert(NodeData::Camera(Camera::new(1, 1, PI / 6.0, 1.0, 9.0)));
 
         Self { scene, camera }
+    }
+
+    fn sync_camera_resolution(&mut self, ctx: &Context) -> bool {
+        let Some(camera_node) = self.scene.get_mut(self.camera) else {
+            return false;
+        };
+
+        let NodeData::Camera(camera) = &mut camera_node.data else {
+            return false;
+        };
+
+        camera.update_resolution(ctx.width() as u32, ctx.height() as u32);
+
+        true
     }
 }
 
 impl Application for App {
     fn on_user_start(&mut self, ctx: &mut Context) -> bool {
-        if let Some(camera_node) = self.scene.graph.get_mut(self.camera) {
-            match camera_node.data {
-                NodeData::Camera(mut camera) =>
-                    camera.update_resolution(ctx.width() as u32, ctx.height() as u32),
-                _ => {
-                    return false;
-                }
-            }
-        } else {
+        if !self.sync_camera_resolution(ctx) {
             return false;
         }
 
@@ -46,15 +52,7 @@ impl Application for App {
     }
 
     fn on_user_update(&mut self, ctx: &mut Context) -> bool {
-        if let Some(camera_node) = self.scene.graph.get_mut(self.camera) {
-            match camera_node.data {
-                NodeData::Camera(mut camera) =>
-                    camera.update_resolution(ctx.width() as u32, ctx.height() as u32),
-                _ => {
-                    return false;
-                }
-            }
-        } else {
+        if !self.sync_camera_resolution(ctx) {
             return false;
         }
 

@@ -1,5 +1,7 @@
+use std::collections::VecDeque;
+
 use crate::scene::{
-    math::matrix::RowMat,
+    math::matrix::{ Matrix, Quaternion, RowMat, SqMat, Transform },
     renderer::{ camera::Camera, mesh::Mesh },
     scene::NodeData::Empty,
 };
@@ -17,7 +19,7 @@ pub enum NodeData {
 
 pub struct NodeProperties {
     position: RowMat<3>,
-    rotation: RowMat<4>,
+    rotation: Quaternion,
     scale: RowMat<3>,
 }
 impl Default for NodeProperties {
@@ -27,6 +29,14 @@ impl Default for NodeProperties {
             rotation: RowMat::from_data([[1.0, 0.0, 0.0, 0.0]]),
             scale: RowMat::from_data([[1.0, 1.0, 1.0]]),
         }
+    }
+}
+impl NodeProperties {
+    pub fn get_transform(&self) -> Transform {
+        let mut r = Transform::scale(self.scale);
+        r.extend_reverse_mut(Transform::rotation(self.rotation));
+        r.extend_reverse_mut(Transform::translation(self.position));
+        r
     }
 }
 
@@ -60,12 +70,12 @@ impl Node {
     }
 }
 
-pub struct SceneGraph {
+pub struct SceneTree {
     nodes: SlotMap<NodeId, Node>,
     root: NodeId,
 }
 
-impl SceneGraph {
+impl SceneTree {
     pub fn new() -> Self {
         let mut nodes = SlotMap::<NodeId, Node>::new();
 
@@ -99,7 +109,7 @@ impl SceneGraph {
     }
 
     pub fn insert(&mut self, data: NodeData) -> NodeId {
-        self.nodes.insert_with_key(|key| SceneGraph::create_node_from_data(key, self.root, data))
+        self.nodes.insert_with_key(|key| SceneTree::create_node_from_data(key, self.root, data))
     }
 
     pub fn insert_under(&mut self, data: NodeData, under_id: NodeId) -> Option<NodeId> {
@@ -108,7 +118,7 @@ impl SceneGraph {
         }
 
         let child_id = self.nodes.insert_with_key(|key|
-            SceneGraph::create_node_from_data(key, under_id, data)
+            SceneTree::create_node_from_data(key, under_id, data)
         );
 
         self.nodes.get_mut(under_id)?.children_ids.push(child_id);
@@ -139,16 +149,98 @@ impl SceneGraph {
 
         Ok(())
     }
+
+    pub fn get_mesh_transforms(&self) -> Vec<(&Mesh, Transform)> {
+        let mut res = Vec::<(&Mesh, Transform)>::new();
+
+        let mut stack = Vec::<(NodeId, Transform)>::new();
+        stack.push((self.root, Transform::default()));
+
+        while let Some((node_id, transform)) = stack.pop() {
+            let Some(node_ptr) = self.get(node_id) else {
+                continue;
+            };
+
+            let next_transform = node_ptr.props.get_transform().extend_forward(transform);
+
+            if let NodeData::Mesh(mesh) = &node_ptr.data {
+                res.push((mesh, next_transform));
+            }
+
+            for &child_id in &node_ptr.children_ids {
+                stack.push((child_id, next_transform));
+            }
+        }
+
+        return res;
+    }
+
+    pub fn get_world_transform_for_node(&self, node_id: NodeId) -> Option<Transform> {
+        let node = self.get(node_id)?;
+        let mut transform = node.props.get_transform();
+
+        let mut n_t = node;
+        while !n_t.is_root() {
+            let Some(parent) = self.get(n_t.parent_id) else {
+                break;
+            };
+            n_t = parent;
+            transform.extend_forward_mut(n_t.props.get_transform());
+        }
+
+        return Some(transform);
+    }
 }
 
 pub struct Scene {
-    pub graph: SceneGraph,
+    pub tree: SceneTree,
+    pub active_camera: Option<NodeId>,
 }
 
 impl Scene {
     pub fn new() -> Self {
         Self {
-            graph: SceneGraph::new(),
+            tree: SceneTree::new(),
+            active_camera: None,
         }
+    }
+
+    pub fn get(&self, id: NodeId) -> Option<&Node> {
+        self.tree.get(id)
+    }
+
+    pub fn get_mut(&mut self, id: NodeId) -> Option<&mut Node> {
+        self.tree.get_mut(id)
+    }
+
+    pub fn insert(&mut self, data: NodeData) -> NodeId {
+        if let NodeData::Camera(_) = data {
+            let id = self.insert(data);
+            self.active_camera = Some(id);
+            return id;
+        }
+
+        self.tree.insert(data)
+    }
+
+    pub fn insert_under(&mut self, data: NodeData, under_id: NodeId) -> Option<NodeId> {
+        if let NodeData::Camera(_) = data {
+            let id = self.insert_under(data, under_id)?;
+            self.active_camera = Some(id);
+            return Some(id);
+        }
+        self.tree.insert_under(data, under_id)
+    }
+
+    pub fn delete(&mut self, id: NodeId) -> Result<(), String> {
+        self.tree.delete(id)
+    }
+
+    pub fn get_active_camera(&self) -> Option<&Node> {
+        self.tree.get(self.active_camera?)
+    }
+
+    pub fn get_active_camera_mut(&mut self) -> Option<&mut Node> {
+        self.tree.get_mut(self.active_camera?)
     }
 }

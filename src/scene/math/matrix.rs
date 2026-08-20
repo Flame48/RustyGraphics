@@ -9,15 +9,7 @@ pub type SqMat<const S: usize> = Matrix<S, S>;
 
 pub type Quaternion = RowMat<4>;
 
-impl<const M: usize> SqMat<M> {
-    pub fn identity() -> Self {
-        let mut result = SqMat::<M>::new();
-        for i in 0..M {
-            result.data[i][i] = 1.0;
-        }
-        result
-    }
-}
+// MARK: General Matrix
 
 impl<const M: usize, const N: usize> Matrix<M, N> {
     pub fn new() -> Self {
@@ -129,6 +121,8 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
     }
 }
 
+// MARK: Matrix Operations
+
 impl<const M: usize, const N: usize> std::ops::Add for Matrix<M, N> {
     type Output = Matrix<M, N>;
 
@@ -179,6 +173,41 @@ impl<const M: usize, const N: usize> std::ops::IndexMut<(usize, usize)> for Matr
     }
 }
 
+// MARK: Square Matrix
+impl<const M: usize> SqMat<M> {
+    pub fn identity() -> Self {
+        let mut result = SqMat::<M>::new();
+        for i in 0..M {
+            result.data[i][i] = 1.0;
+        }
+        result
+    }
+}
+
+// MARK: Row x 4 Matrix
+impl<const M: usize> Matrix<M, 4> {
+    pub fn normalize_homogenous(&self) -> Self {
+        let mut result = Self::new();
+        for i in 0..M {
+            let w = self.data[i][3];
+            for j in 0..4 {
+                result.data[i][j] = self.data[i][j] / w;
+            }
+        }
+        result
+    }
+
+    pub fn normalize_homogenous_mut(&mut self) {
+        for i in 0..M {
+            let w = self.data[i][3];
+            for j in 0..4 {
+                self.data[i][j] /= w;
+            }
+        }
+    }
+}
+
+// MARK: Column Matrix
 impl<const M: usize> ColMat<M> {
     pub fn serial_col(&self) -> [f32; M] {
         self.col(0)
@@ -201,6 +230,7 @@ impl<const M: usize> ColMat<M> {
     }
 }
 
+// MARK: Row Matrix
 impl<const N: usize> RowMat<N> {
     pub fn serial_row(&self) -> [f32; N] {
         self.row(0)
@@ -223,32 +253,34 @@ impl<const N: usize> RowMat<N> {
     }
 }
 
+// MARK: Itemized Matrix
 impl SqMat<1> {
     pub fn item(&self) -> f32 {
         self.get(0, 0)
     }
 }
 
+// MARK: 4x4 Transform Matrix
 impl SqMat<4> {
-    pub fn scale(s: [f32; 3]) -> Self {
+    pub fn scale(s: RowMat<3>) -> Self {
         Self::from_data([
-            [s[0], 0.0, 0.0, 0.0],
-            [0.0, s[1], 0.0, 0.0],
-            [0.0, 0.0, s[2], 0.0],
+            [s.x(), 0.0, 0.0, 0.0],
+            [0.0, s.y(), 0.0, 0.0],
+            [0.0, 0.0, s.z(), 0.0],
             [0.0, 0.0, 0.0, 1.0],
         ])
     }
-    pub fn translation(p: [f32; 3]) -> Self {
+    pub fn translation(p: RowMat<3>) -> Self {
         Self::from_data([
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
-            [p[0], p[1], p[2], 1.0],
+            [p.x(), p.y(), p.z(), 1.0],
         ])
     }
 
-    pub fn rotation(q: [f32; 4]) -> Self {
-        let [x, y, z, w] = q;
+    pub fn rotation(q: Quaternion) -> Self {
+        let (w, x, y, z) = q.wxyz();
         let (x2, y2, z2) = (x + x, y + y, z + z);
         let (xx, xy, xz) = (x * x2, x * y2, x * z2);
         let (yy, yz, zz) = (y * y2, y * z2, z * z2);
@@ -261,8 +293,31 @@ impl SqMat<4> {
             [0.0, 0.0, 0.0, 1.0],
         ])
     }
+
+    pub fn scale_inv(s: RowMat<3>) -> Self {
+        Self::from_data([
+            [1.0 / s.x(), 0.0, 0.0, 0.0],
+            [0.0, 1.0 / s.y(), 0.0, 0.0],
+            [0.0, 0.0, 1.0 / s.z(), 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ])
+    }
+    pub fn translation_inv(p: RowMat<3>) -> Self {
+        Self::from_data([
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [-p.x(), -p.y(), -p.z(), 1.0],
+        ])
+    }
+
+    pub fn rotation_inv(q: Quaternion) -> Self {
+        let (w, x, y, z) = q.wxyz();
+        Self::rotation(Quaternion::from_data([[w, -x, -y, -z]]))
+    }
 }
 
+// MARK: XYZ Row Matrix
 impl RowMat<3> {
     #[inline(always)]
     pub fn x(&self) -> f32 {
@@ -278,6 +333,7 @@ impl RowMat<3> {
     }
 }
 
+// MARK: Quaternion
 impl Quaternion {
     #[inline(always)]
     pub fn w(&self) -> f32 {
@@ -304,7 +360,7 @@ impl Quaternion {
         (self.w(), self.x(), self.y(), self.z())
     }
 
-    pub fn to_quant_matrix(&self) -> SqMat<4> {
+    pub fn to_quaternion_matrix(&self) -> SqMat<4> {
         let (w, x, y, z) = self.wxyz();
         SqMat::<4>::from_data([
             [w, x, y, z],
@@ -315,11 +371,11 @@ impl Quaternion {
     }
 
     pub fn hamiltonion_quaternion_mul(&self, other: &Self) -> Self {
-        self.mul(&other.to_quant_matrix())
+        self.mul(&other.to_quaternion_matrix())
     }
 
     pub fn hamiltonion_quaternion_mul_mut(&mut self, other: &Self) {
-        self.clone_from(&self.mul(&other.to_quant_matrix()));
+        self.clone_from(&self.mul(&other.to_quaternion_matrix()));
     }
 
     pub fn rotate(&self, axis: &RowMat<3>, by: f32) -> Self {
@@ -349,5 +405,65 @@ impl Quaternion {
         ]);
         self.hamiltonion_quaternion_mul_mut(&q_ax);
         self.norm_row_to();
+    }
+}
+
+// MARK: Invertible Transforms
+#[derive(Clone, Copy)]
+pub struct Transform {
+    pub forward: SqMat<4>,
+    pub reverse: SqMat<4>,
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self { forward: SqMat::<4>::identity(), reverse: SqMat::<4>::identity() }
+    }
+}
+
+impl Transform {
+    pub fn extend_forward(&self, by: Self) -> Self {
+        Self {
+            forward: self.forward * by.forward,
+            reverse: by.reverse * self.reverse,
+        }
+    }
+    pub fn extend_forward_mut(&mut self, by: Self) {
+        *self = self.extend_forward(by);
+    }
+
+    pub fn extend_reverse(&self, by: Self) -> Self {
+        Self {
+            forward: by.forward * self.forward,
+            reverse: self.reverse * by.reverse,
+        }
+    }
+
+    pub fn extend_reverse_mut(&mut self, by: Self) {
+        *self = self.extend_reverse(by);
+    }
+
+    pub fn scale(s: RowMat<3>) -> Self {
+        Transform {
+            forward: SqMat::<4>::scale(s),
+            reverse: SqMat::<4>::scale_inv(s),
+        }
+    }
+    pub fn translation(p: RowMat<3>) -> Self {
+        Transform {
+            forward: SqMat::<4>::translation(p),
+            reverse: SqMat::<4>::translation_inv(p),
+        }
+    }
+
+    pub fn rotation(q: Quaternion) -> Self {
+        Transform {
+            forward: SqMat::<4>::rotation(q),
+            reverse: SqMat::<4>::rotation_inv(q),
+        }
+    }
+
+    pub fn inverse(&self) -> Self {
+        Self { forward: self.reverse, reverse: self.forward }
     }
 }
