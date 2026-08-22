@@ -4,7 +4,7 @@ pub mod context;
 use std::{ io::{ self }, time::Duration };
 use crossterm::{
     cursor::{ Hide, Show },
-    event::{ self, Event, KeyCode },
+    event::{ self, Event, KeyCode, KeyEvent },
     execute,
     terminal::{ EnterAlternateScreen, LeaveAlternateScreen },
 };
@@ -17,6 +17,8 @@ pub trait Application {
     fn on_user_start(&mut self, ctx: &mut Context) -> bool;
 
     fn on_user_update(&mut self, ctx: &mut Context) -> bool;
+
+    fn on_user_key_press(&mut self, key: KeyEvent) -> bool;
 }
 
 struct TerminalGuard;
@@ -69,7 +71,7 @@ impl<T: Application> ConsoleRunner<T> {
             for event in events {
                 match event {
                     Event::Key(k) => {
-                        if k.code == KeyCode::Char('q') {
+                        if k.code == KeyCode::Char('q') || !self.app.on_user_key_press(k) {
                             should_quit = true;
                             break;
                         }

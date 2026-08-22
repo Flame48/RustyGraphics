@@ -13,14 +13,24 @@ mod math;
 pub mod renderer;
 mod scene;
 
+use crossterm::event::{ KeyCode, KeyEventKind };
 use scene::{ Scene, NodeData };
 use slotmap::DefaultKey;
 
 struct AppData {
     pub cube: DefaultKey,
+    pub is_wireframe: bool,
 }
 
-impl AppData {}
+impl AppData {
+    pub fn new(cube: DefaultKey) -> Self {
+        Self { cube, is_wireframe: false }
+    }
+
+    fn toggle_wireframe(&mut self) {
+        self.is_wireframe = !self.is_wireframe;
+    }
+}
 
 pub struct App {
     scene: Scene,
@@ -40,7 +50,7 @@ impl App {
 
         let renderer = SceneRenderer::new();
 
-        let appdata = AppData { cube: cube };
+        let appdata = AppData::new(cube);
 
         Some(Self { scene, camera, renderer, appdata })
     }
@@ -90,12 +100,29 @@ impl Application for App {
         let axis = RowMat::<3>::from_data([[1.0, 1.0, 1.0]]);
         cube.props.rotate(1e-3, &axis);
 
-        self.renderer.render(&self.scene);
+        if self.appdata.is_wireframe {
+            self.renderer.render_wireframes(&self.scene);
+        } else {
+            self.renderer.render(&self.scene);
+        }
 
         ctx.clear();
         ctx.fill(BACK);
         ctx.blit_frame_buffer(&self.renderer.fb);
 
         true
+    }
+
+    fn on_user_key_press(&mut self, key: crossterm::event::KeyEvent) -> bool {
+        if key.kind == KeyEventKind::Release {
+            return true;
+        }
+        return match key.code {
+            KeyCode::Char('d') => {
+                self.appdata.toggle_wireframe();
+                true
+            }
+            _ => { true }
+        };
     }
 }
