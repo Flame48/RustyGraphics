@@ -40,6 +40,18 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
         res
     }
 
+    pub fn row_mat(&self, row: usize) -> RowMat<N> {
+        RowMat::from_data([self.row(row)])
+    }
+
+    pub fn col_mat(&self, col: usize) -> ColMat<M> {
+        let mut res: [[f32; 1]; M] = [[0.0; 1]; M];
+        for i in 0..M {
+            res[i] = [self.data[i][col]];
+        }
+        ColMat::from_data(res)
+    }
+
     pub fn apply(&self, other: &Matrix<M, N>, f: impl Fn(f32, f32) -> f32) -> Self {
         let mut result = Self::new();
         for i in 0..M {
@@ -251,6 +263,14 @@ impl<const N: usize> RowMat<N> {
         let mag = self.mag_row();
         self.map_to(|x| x / mag)
     }
+
+    pub fn dot(&self, other: Self) -> f32 {
+        let mut acc = 0.0;
+        for i in 0..N {
+            acc += self.data[0][i] * other.data[0][i];
+        }
+        acc
+    }
 }
 
 // MARK: Itemized Matrix
@@ -318,6 +338,16 @@ impl SqMat<4> {
 }
 
 // MARK: XYZ Row Matrix
+impl RowMat<2> {
+    #[inline(always)]
+    pub fn x(&self) -> f32 {
+        self.data[0][0]
+    }
+    #[inline(always)]
+    pub fn y(&self) -> f32 {
+        self.data[0][1]
+    }
+}
 impl RowMat<3> {
     #[inline(always)]
     pub fn x(&self) -> f32 {
@@ -330,6 +360,16 @@ impl RowMat<3> {
     #[inline(always)]
     pub fn z(&self) -> f32 {
         self.data[0][2]
+    }
+
+    pub fn cross(&self, other: Self) -> Self {
+        Self::from_data([
+            [
+                self.y() * other.z() - self.z() * other.y(),
+                self.z() * other.x() - self.x() * other.z(),
+                self.x() * other.y() - self.y() * other.x(),
+            ],
+        ])
     }
 }
 

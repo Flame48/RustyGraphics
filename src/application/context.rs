@@ -1,4 +1,5 @@
 use crate::application::cell::{ Cell, CellStyle };
+use crate::scene::renderer::{ FrameBuffer, RGBA };
 
 use std::io::{ self, Write };
 use crossterm::{ cursor::MoveTo, queue, style::{ Print, SetBackgroundColor, SetForegroundColor } };
@@ -143,5 +144,35 @@ impl Context {
         let len = (width as usize) * (height as usize);
         self.front = vec![Cell::default(); len];
         self.back = vec![Cell::default(); len];
+    }
+
+    fn to_color(c: RGBA) -> crossterm::style::Color {
+        crossterm::style::Color::Rgb { r: c[0], g: c[1], b: c[2] }
+    }
+
+    pub fn blit_frame_buffer(&mut self, fb: &FrameBuffer) {
+        let cols = self.width().min(fb.width as u16);
+        let rows = self.height().min((fb.height / 2) as u16);
+
+        for y in 0..rows {
+            for x in 0..cols {
+                let top_idx = ((y as u32) * 2 * fb.width + (x as u32)) as usize;
+                let bot_idx = (((y as u32) * 2 + 1) * fb.width + (x as u32)) as usize;
+
+                let top = fb.color[top_idx];
+                let bot = fb.color[bot_idx];
+
+                let ch = if top == bot { '█' } else { '▀' };
+
+                self.put(
+                    Cell {
+                        ch,
+                        style: CellStyle { fg: Context::to_color(top), bg: Context::to_color(bot) },
+                    },
+                    x,
+                    y
+                );
+            }
+        }
     }
 }

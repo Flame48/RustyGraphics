@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{ collections::VecDeque, ops::AddAssign };
 
 use crate::scene::{
     math::matrix::{ Matrix, Quaternion, RowMat, SqMat, Transform },
@@ -22,6 +22,7 @@ pub struct NodeProperties {
     rotation: Quaternion,
     scale: RowMat<3>,
 }
+
 impl Default for NodeProperties {
     fn default() -> Self {
         Self {
@@ -37,6 +38,14 @@ impl NodeProperties {
         r.extend_reverse_mut(Transform::rotation(self.rotation));
         r.extend_reverse_mut(Transform::translation(self.position));
         r
+    }
+
+    pub fn translate(&mut self, by: RowMat<3>) {
+        self.position += by;
+    }
+
+    pub fn rotate(&mut self, by: f32, axis: &RowMat<3>) {
+        self.rotation.rotate_mut(axis, by);
     }
 }
 
@@ -109,7 +118,7 @@ impl SceneTree {
     }
 
     pub fn insert(&mut self, data: NodeData) -> NodeId {
-        self.nodes.insert_with_key(|key| SceneTree::create_node_from_data(key, self.root, data))
+        self.insert_under(data, self.root).expect("root always exists")
     }
 
     pub fn insert_under(&mut self, data: NodeData, under_id: NodeId) -> Option<NodeId> {
@@ -215,7 +224,7 @@ impl Scene {
 
     pub fn insert(&mut self, data: NodeData) -> NodeId {
         if let NodeData::Camera(_) = data {
-            let id = self.insert(data);
+            let id = self.tree.insert(data);
             self.active_camera = Some(id);
             return id;
         }
@@ -225,7 +234,7 @@ impl Scene {
 
     pub fn insert_under(&mut self, data: NodeData, under_id: NodeId) -> Option<NodeId> {
         if let NodeData::Camera(_) = data {
-            let id = self.insert_under(data, under_id)?;
+            let id = self.tree.insert_under(data, under_id)?;
             self.active_camera = Some(id);
             return Some(id);
         }

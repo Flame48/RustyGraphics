@@ -1,7 +1,8 @@
-use crate::scene::math::matrix::{ Matrix, SqMat };
+use crate::scene::math::matrix::{ Matrix, SqMat, Transform };
 
+#[derive(Clone, Copy)]
 pub struct Triangle {
-    verts: Matrix<3, 4>,
+    pub verts: Matrix<3, 4>,
 }
 
 impl Triangle {
@@ -14,8 +15,8 @@ impl Triangle {
         }
     }
 
-    pub fn transform(&self, transform: SqMat<4>) -> Self {
-        let mut verts = self.verts * transform;
+    pub fn transform(&self, transform: Transform) -> Self {
+        let mut verts = self.verts * transform.forward;
         verts.normalize_homogenous_mut();
         Self { verts }
     }
@@ -61,11 +62,15 @@ impl Mesh {
         Self { tris }
     }
 
-    pub fn transform(&self, transform: SqMat<4>) -> Self {
+    pub fn transform(&self, transform: Transform) -> Self {
         let tris = self.tris
             .iter()
             .map(|t| t.transform(transform))
             .collect();
         Self { tris }
+    }
+
+    pub fn triangles(&self) -> &Vec<Triangle> {
+        &self.tris
     }
 }
