@@ -160,7 +160,7 @@ impl Application for App {
                 let Some(c) = self.scene.get_active_camera_mut() else {
                     return true;
                 };
-                let direction = -RowMat::axis_y();
+                let direction = RowMat::axis_y();
                 c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
                 true
             }
@@ -168,7 +168,7 @@ impl Application for App {
                 let Some(c) = self.scene.get_active_camera_mut() else {
                     return true;
                 };
-                let direction = RowMat::axis_y();
+                let direction = -RowMat::axis_y();
                 c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
                 true
             }
