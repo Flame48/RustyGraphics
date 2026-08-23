@@ -247,7 +247,9 @@ impl SceneRenderer {
         let meshes = scene.tree.get_mesh_transforms();
 
         // Compute transforms
-        let Some(view_transform) = scene.tree.get_world_transform_for_node(camera_node.id) else {
+        let Some(view_transform) = scene.tree
+            .get_world_transform_for_node(camera_node.id)
+            .map(|x| x.inverse()) else {
             return;
         };
 
@@ -280,7 +282,9 @@ impl SceneRenderer {
         };
         let meshes = scene.tree.get_mesh_transforms();
 
-        let Some(view_transform) = scene.tree.get_world_transform_for_node(camera_node.id) else {
+        let Some(view_transform) = scene.tree
+            .get_world_transform_for_node(camera_node.id)
+            .map(|x| x.inverse()) else {
             return;
         };
         let proj_transform = camera_data.projection_transform();

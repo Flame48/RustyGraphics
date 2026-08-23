@@ -15,15 +15,14 @@ mod scene;
 
 use crossterm::event::{ KeyCode, KeyEventKind };
 use scene::{ Scene, NodeData };
-use slotmap::DefaultKey;
 
 struct AppData {
-    pub cube: DefaultKey,
+    pub cube: NodeId,
     pub is_wireframe: bool,
 }
 
 impl AppData {
-    pub fn new(cube: DefaultKey) -> Self {
+    pub fn new(cube: NodeId) -> Self {
         Self { cube, is_wireframe: false }
     }
 
@@ -80,7 +79,7 @@ impl Application for App {
         true
     }
 
-    fn on_user_update(&mut self, ctx: &mut Context) -> bool {
+    fn on_user_update(&mut self, ctx: &mut Context, dt: f32) -> bool {
         if !self.sync_camera_resolution(ctx) {
             return false;
         }
@@ -113,13 +112,96 @@ impl Application for App {
         true
     }
 
-    fn on_user_key_press(&mut self, key: crossterm::event::KeyEvent) -> bool {
+    fn on_user_key_press(&mut self, key: crossterm::event::KeyEvent, dt: f32) -> bool {
         if key.kind == KeyEventKind::Release {
             return true;
         }
+        const CAMERA_MOVEMENT_FAC: f32 = 100.0;
+        const CAMERA_ROT_FAC: f32 = 60.0;
         return match key.code {
-            KeyCode::Char('d') => {
+            KeyCode::Esc => { false }
+            KeyCode::Char('z') => {
                 self.appdata.toggle_wireframe();
+                true
+            }
+            KeyCode::Char('w') => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = -c.props.axis_z();
+                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            KeyCode::Char('a') => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = c.props.axis_x();
+                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            KeyCode::Char('s') => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = c.props.axis_z();
+                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            KeyCode::Char('d') => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = -c.props.axis_x();
+                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            KeyCode::Char('q') => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = -RowMat::axis_y();
+                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            KeyCode::Char('e') => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = RowMat::axis_y();
+                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            KeyCode::Left => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = -RowMat::axis_y();
+                c.rotate(axis, CAMERA_ROT_FAC * dt);
+                true
+            }
+            KeyCode::Right => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = RowMat::axis_y();
+                c.rotate(axis, CAMERA_ROT_FAC * dt);
+                true
+            }
+            KeyCode::Up => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = c.props.axis_x();
+                c.rotate(axis, CAMERA_ROT_FAC * dt);
+                true
+            }
+            KeyCode::Down => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = -c.props.axis_x();
+                c.rotate(axis, CAMERA_ROT_FAC * dt);
                 true
             }
             _ => { true }

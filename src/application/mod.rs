@@ -1,7 +1,7 @@
 pub mod cell;
 pub mod context;
 
-use std::{ io::{ self }, time::Duration };
+use std::{ io::{ self }, time::{ Duration, Instant } };
 use crossterm::{
     cursor::{ Hide, Show },
     event::{ self, Event, KeyCode, KeyEvent },
@@ -16,9 +16,9 @@ pub use context::Context;
 pub trait Application {
     fn on_user_start(&mut self, ctx: &mut Context) -> bool;
 
-    fn on_user_update(&mut self, ctx: &mut Context) -> bool;
+    fn on_user_update(&mut self, ctx: &mut Context, dt: f32) -> bool;
 
-    fn on_user_key_press(&mut self, key: KeyEvent) -> bool;
+    fn on_user_key_press(&mut self, key: KeyEvent, dt: f32) -> bool;
 }
 
 struct TerminalGuard;
@@ -63,15 +63,21 @@ impl<T: Application> ConsoleRunner<T> {
             return Ok(());
         }
 
+        let mut last_time = Instant::now();
+
         loop {
             let events = self.poll_events()?;
+
+            let current_time = Instant::now();
+            let dt = (current_time - last_time).as_secs_f32();
+            last_time = current_time;
 
             let mut should_quit = false;
 
             for event in events {
                 match event {
                     Event::Key(k) => {
-                        if k.code == KeyCode::Char('q') || !self.app.on_user_key_press(k) {
+                        if !self.app.on_user_key_press(k, dt) {
                             should_quit = true;
                             break;
                         }
@@ -87,7 +93,7 @@ impl<T: Application> ConsoleRunner<T> {
                 break;
             }
 
-            if !self.app.on_user_update(&mut self.ctx) {
+            if !self.app.on_user_update(&mut self.ctx, dt) {
                 break;
             }
             self.ctx.present(&mut io::stdout())?;

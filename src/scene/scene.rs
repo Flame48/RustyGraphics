@@ -18,9 +18,9 @@ pub enum NodeData {
 }
 
 pub struct NodeProperties {
-    position: RowMat<3>,
-    rotation: Quaternion,
-    scale: RowMat<3>,
+    pub position: RowMat<3>,
+    pub rotation: Quaternion,
+    pub scale: RowMat<3>,
 }
 
 impl Default for NodeProperties {
@@ -35,8 +35,8 @@ impl Default for NodeProperties {
 impl NodeProperties {
     pub fn get_transform(&self) -> Transform {
         let mut r = Transform::scale(self.scale);
-        r.extend_reverse_mut(Transform::rotation(self.rotation));
-        r.extend_reverse_mut(Transform::translation(self.position));
+        r.extend_forward_mut(Transform::rotation(self.rotation));
+        r.extend_forward_mut(Transform::translation(self.position));
         r
     }
 
@@ -46,6 +46,18 @@ impl NodeProperties {
 
     pub fn rotate(&mut self, by: f32, axis: &RowMat<3>) {
         self.rotation.rotate_mut(axis, by);
+    }
+
+    pub fn axis_x(&self) -> RowMat<3> {
+        RowMat::<3>::axis_x().rotate_by_quaternion(-self.rotation)
+    }
+
+    pub fn axis_y(&self) -> RowMat<3> {
+        RowMat::<3>::axis_y().rotate_by_quaternion(-self.rotation)
+    }
+
+    pub fn axis_z(&self) -> RowMat<3> {
+        RowMat::<3>::axis_z().rotate_by_quaternion(-self.rotation)
     }
 }
 

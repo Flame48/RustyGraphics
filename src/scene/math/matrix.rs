@@ -106,6 +106,14 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
         result
     }
 
+    pub fn scalar_mul(&self, by: f32) -> Self {
+        self.map(|x| x * by)
+    }
+
+    pub fn scalar_mul_to(&mut self, by: f32) {
+        self.map_to(|x| x * by)
+    }
+
     pub fn transpose(&self) -> Matrix<N, M> {
         let mut result = Matrix::<N, M>::new();
         for i in 0..M {
@@ -171,6 +179,20 @@ impl<const M: usize, const N: usize, const S: usize> std::ops::Mul<Matrix<N, S>>
     }
 }
 
+impl<const M: usize, const N: usize> std::ops::Mul<f32> for Matrix<M, N> {
+    type Output = Matrix<M, N>;
+
+    fn mul(self, other: f32) -> Matrix<M, N> {
+        Matrix::scalar_mul(&self, other)
+    }
+}
+
+impl<const M: usize, const N: usize> std::ops::MulAssign<f32> for Matrix<M, N> {
+    fn mul_assign(&mut self, other: f32) {
+        self.scalar_mul_to(other);
+    }
+}
+
 impl<const M: usize, const N: usize> std::ops::Index<(usize, usize)> for Matrix<M, N> {
     type Output = f32;
 
@@ -182,6 +204,14 @@ impl<const M: usize, const N: usize> std::ops::Index<(usize, usize)> for Matrix<
 impl<const M: usize, const N: usize> std::ops::IndexMut<(usize, usize)> for Matrix<M, N> {
     fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut f32 {
         &mut self.data[row][col]
+    }
+}
+
+impl<const M: usize, const N: usize> std::ops::Neg for Matrix<M, N> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        self.map(|x| -x)
     }
 }
 
@@ -216,6 +246,17 @@ impl<const M: usize> Matrix<M, 4> {
                 self.data[i][j] /= w;
             }
         }
+    }
+
+    pub fn to_uniform(&self) -> Matrix<M, 3> {
+        let mut result = Matrix::<M, 3>::new();
+        for i in 0..M {
+            let w = self.data[i][3];
+            for j in 0..3 {
+                result.data[i][j] = self.data[i][j] / w;
+            }
+        }
+        result
     }
 }
 
@@ -348,6 +389,7 @@ impl RowMat<2> {
         self.data[0][1]
     }
 }
+
 impl RowMat<3> {
     #[inline(always)]
     pub fn x(&self) -> f32 {
@@ -370,6 +412,30 @@ impl RowMat<3> {
                 self.x() * other.y() - self.y() * other.x(),
             ],
         ])
+    }
+
+    pub fn axis_x() -> Self {
+        Self::from_data([[1.0, 0.0, 0.0]])
+    }
+
+    pub fn axis_y() -> Self {
+        Self::from_data([[0.0, 1.0, 0.0]])
+    }
+
+    pub fn axis_z() -> Self {
+        Self::from_data([[0.0, 0.0, 1.0]])
+    }
+
+    pub fn to_homogenous(&self) -> RowMat<4> {
+        RowMat::<4>::from_data([[self.x(), self.y(), self.z(), 1.0]])
+    }
+
+    pub fn transform(&self, by: Transform) -> Self {
+        (self.to_homogenous() * by.forward).to_uniform()
+    }
+
+    pub fn rotate_by_quaternion(&self, by: Quaternion) -> Self {
+        self.transform(Transform::rotation(by))
     }
 }
 
