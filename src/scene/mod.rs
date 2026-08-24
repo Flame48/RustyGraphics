@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use crate::{
     application::{ Application, Cell, Context, cell::CellStyle },
     scene::{
-        math::matrix::RowMat,
+        math::matrix::{ RowMat, Transform },
         renderer::{ SceneRenderer, camera::Camera, mesh::Mesh },
         scene::NodeId,
     },
@@ -17,13 +17,13 @@ use crossterm::event::{ KeyCode, KeyEventKind };
 use scene::{ Scene, NodeData };
 
 struct AppData {
-    pub cube: NodeId,
+    pub example_mesh: NodeId,
     pub is_wireframe: bool,
 }
 
 impl AppData {
-    pub fn new(cube: NodeId) -> Self {
-        Self { cube, is_wireframe: false }
+    pub fn new(example_mesh: NodeId) -> Self {
+        Self { example_mesh, is_wireframe: false }
     }
 
     fn toggle_wireframe(&mut self) {
@@ -41,7 +41,16 @@ pub struct App {
 impl App {
     pub fn new() -> Option<Self> {
         let mut scene = Scene::new();
-        let cube = scene.insert(NodeData::Mesh(Mesh::construct_cube()));
+
+        // let mut teapot = Mesh::import_obj("./examples/utah_teapot.obj").expect(
+        //     "Unable to load mesh"
+        // );
+        // teapot.use_flat_shading();
+        let mut bunny = Mesh::import_obj("./examples/bunny.obj").expect("Unable to load mesh");
+        bunny.use_flat_shading();
+        bunny = bunny.transform(Transform::scale(RowMat::from_data([[20.0; 3]])));
+
+        let example_mesh = scene.insert(NodeData::Mesh(bunny));
 
         let camera = scene.insert(NodeData::Camera(Camera::new(1, 1, PI / 6.0, 1.0, 9.0)));
         let c = scene.get_mut(camera)?;
@@ -49,7 +58,7 @@ impl App {
 
         let renderer = SceneRenderer::new();
 
-        let appdata = AppData::new(cube);
+        let appdata = AppData::new(example_mesh);
 
         Some(Self { scene, camera, renderer, appdata })
     }
@@ -92,7 +101,7 @@ impl Application for App {
             },
         };
 
-        let Some(cube) = self.scene.get_mut(self.appdata.cube) else {
+        let Some(cube) = self.scene.get_mut(self.appdata.example_mesh) else {
             return false;
         };
 

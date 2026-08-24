@@ -1,6 +1,6 @@
 use crate::scene::{
     math::matrix::{ RowMat, Transform },
-    renderer::{ fragment::Fragment, mesh::Mesh },
+    renderer::{ fragment::Fragment, mesh::{ Mesh, Triangle } },
     scene::{ NodeData, Scene },
 };
 
@@ -66,7 +66,7 @@ impl SceneRenderer {
         Self { fb: FrameBuffer::new(1, 1) }
     }
 
-    fn edge(v0: RowMat<2>, v1: RowMat<2>, p: RowMat<2>) -> f32 {
+    fn edge(v0: RowMat<2>, p: RowMat<2>, v1: RowMat<2>) -> f32 {
         (p.x() - v0.x()) * (v1.y() - v0.y()) - (p.y() - v0.y()) * (v1.x() - v0.x())
     }
 
@@ -100,7 +100,7 @@ impl SceneRenderer {
 
             let area = SceneRenderer::edge(p1, p2, p3);
 
-            if area.abs() < 1e-6 {
+            if area < 1e-6 {
                 // Degenerate
                 continue;
             }
@@ -132,13 +132,8 @@ impl SceneRenderer {
                     let w2 = SceneRenderer::edge(p3, p1, center);
                     let w3 = SceneRenderer::edge(p1, p2, center);
 
-                    let inside = if area > 0.0 {
-                        w1 >= 0.0 && w2 >= 0.0 && w3 >= 0.0
-                    } else {
-                        w1 <= 0.0 && w2 <= 0.0 && w3 <= 0.0
-                    };
-
-                    if !inside {
+                    // Check if fragment is inside triangle
+                    if w1 < 0.0 || w2 < 0.0 || w3 < 0.0 {
                         continue;
                     }
 
@@ -224,13 +219,20 @@ impl SceneRenderer {
             let v2 = tri.verts.row_mat(1);
             let v3 = tri.verts.row_mat(2);
 
-            let p1 = to_screen(v1);
-            let p2 = to_screen(v2);
-            let p3 = to_screen(v3);
+            let (p1, z1) = to_screen(v1);
+            let (p2, z2) = to_screen(v2);
+            let (p3, z3) = to_screen(v3);
 
-            draw_edge(p1, p2, &mut res);
-            draw_edge(p2, p3, &mut res);
-            draw_edge(p3, p1, &mut res);
+            let area = SceneRenderer::edge(p1, p2, p3);
+
+            if area < 1e-6 {
+                // Backface Culling
+                continue;
+            }
+
+            draw_edge((p1, z1), (p2, z2), &mut res);
+            draw_edge((p2, z2), (p3, z3), &mut res);
+            draw_edge((p3, z3), (p1, z1), &mut res);
         }
 
         res
