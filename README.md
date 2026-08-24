@@ -21,14 +21,14 @@ You can find instructions on setup and controls [here](#setup).
 - Basic software rendering
 - Camera movement controls
 - Wireframe view
+- Backface culling
+- Importing .OBJ files
 
 ### Soon to be Added
 
 - Computed normals
-- Backface culling
 - Texture coordinates
-- Importing .OBJ files
-- Basic lighting models and textures
+- Basic lighting models
 
 ## Setup
 
