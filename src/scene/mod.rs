@@ -42,15 +42,18 @@ impl App {
     pub fn new() -> Option<Self> {
         let mut scene = Scene::new();
 
+        // This loads the teapot mesh
         // let mut teapot = Mesh::import_obj("./examples/utah_teapot.obj").expect(
         //     "Unable to load mesh"
         // );
         // teapot.use_flat_shading();
-        let mut bunny = Mesh::import_obj("./examples/bunny.obj").expect("Unable to load mesh");
-        bunny.use_flat_shading();
-        bunny = bunny.transform(Transform::scale(RowMat::from_data([[20.0; 3]])));
 
-        let example_mesh = scene.insert(NodeData::Mesh(bunny));
+        // This loads the cube mesh
+        let mut cube = Mesh::construct_cube();
+        cube.use_flat_shading();
+
+        // This inserts the mesh data into the scene tree
+        let example_mesh = scene.insert(NodeData::Mesh(cube));
 
         let camera = scene.insert(NodeData::Camera(Camera::new(1, 1, PI / 6.0, 1.0, 9.0)));
         let c = scene.get_mut(camera)?;

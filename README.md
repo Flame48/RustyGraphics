@@ -8,6 +8,12 @@ This is a project I have wanted to work on for quite a while. It's a basic softw
 
 ![Spinning Solid Cube example (Note: There is currently no shading)](<docs/images/Cube Filled Demo.png>)
 
+I've also recently added support for importing simple meshes from OBJ files.
+Here's an example of the [Utah Teapot](https://en.wikipedia.org/wiki/Utah_teapot) obtained [here](https://graphics.cs.utah.edu/teapot/). You can find the object file in the repository over [here](examples/utah_teapot.obj).
+
+![Spinning Teapot Solid example](<docs/images/Teapot Filled Demo.png>)
+![Spinning Teapot Wireframe example (Note: The teapot is hollow and as such has internal faces that face the camera)](<docs/images/Teapot Wireframe Demo.png>)
+
 > Note: There is currently no shading supported. This will be added as an upcoming feature, [see below](#soon-to-be-added)
 
 You can find instructions on setup and controls [here](#setup).
@@ -29,6 +35,7 @@ You can find instructions on setup and controls [here](#setup).
 - Computed normals
 - Texture coordinates
 - Basic lighting models
+- Rendering in a separate window with higher resolution
 
 ## Setup
 
