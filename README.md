@@ -14,6 +14,11 @@ Here's an example of the [Utah Teapot](https://en.wikipedia.org/wiki/Utah_teapot
 ![Spinning Teapot Solid example](<docs/images/Teapot Filled Demo.png>)
 ![Spinning Teapot Wireframe example (Note: The teapot is hollow and as such has internal faces that face the camera)](<docs/images/Teapot Wireframe Demo.png>)
 
+There's now also support for rendering in a window as opposed to the terminal for higher resolutions.
+
+![Spinning Teapot in Window example](<docs/images/Teapot Filled Demo Window.png>)
+![Spinning Teapot Wireframe in Window example](<docs/images/Teapot Wireframe Demo Window.png>)
+
 > Note: There is currently no shading supported. This will be added as an upcoming feature, [see below](#soon-to-be-added)
 
 You can find instructions on setup and controls [here](#setup).
@@ -29,13 +34,13 @@ You can find instructions on setup and controls [here](#setup).
 - Wireframe view
 - Backface culling
 - Importing .OBJ files
+- Rendering in a window with higher resolution
 
 ### Soon to be Added
 
 - Computed normals
 - Texture coordinates
 - Basic lighting models
-- Rendering in a separate window with higher resolution
 
 ## Setup
 

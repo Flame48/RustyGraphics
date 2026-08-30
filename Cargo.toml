@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.104"
 crossterm = "0.29.0"
 slotmap = "1.1.1"
+softbuffer = "0.4"
+winit = "0.29"

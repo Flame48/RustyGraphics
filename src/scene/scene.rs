@@ -49,15 +49,15 @@ impl NodeProperties {
     }
 
     pub fn axis_x(&self) -> RowMat<3> {
-        RowMat::<3>::axis_x().rotate_by_quaternion(-self.rotation)
+        RowMat::<3>::axis_x().rotate_by_quaternion(self.rotation)
     }
 
     pub fn axis_y(&self) -> RowMat<3> {
-        RowMat::<3>::axis_y().rotate_by_quaternion(-self.rotation)
+        RowMat::<3>::axis_y().rotate_by_quaternion(self.rotation)
     }
 
     pub fn axis_z(&self) -> RowMat<3> {
-        RowMat::<3>::axis_z().rotate_by_quaternion(-self.rotation)
+        RowMat::<3>::axis_z().rotate_by_quaternion(self.rotation)
     }
 }
 

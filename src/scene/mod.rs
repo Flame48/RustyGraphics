@@ -1,9 +1,13 @@
 use std::f32::consts::PI;
 
 use crate::{
-    application::{ Application, Cell, Context, cell::CellStyle },
+    application::{
+        Application,
+        console::{ ConsoleRenderingContext2D, cell::{ Cell, CellStyle } },
+        window::context::WindowRenderingContext2D,
+    },
     scene::{
-        math::matrix::{ RowMat, Transform },
+        math::matrix::RowMat,
         renderer::{ SceneRenderer, camera::Camera, mesh::Mesh },
         scene::NodeId,
     },
@@ -13,8 +17,9 @@ mod math;
 pub mod renderer;
 mod scene;
 
-use crossterm::event::{ KeyCode, KeyEventKind };
+use crossterm::event::{ KeyEvent, KeyEventKind };
 use scene::{ Scene, NodeData };
+use winit::{ event::ElementState, keyboard::PhysicalKey };
 
 struct AppData {
     pub example_mesh: NodeId,
@@ -31,6 +36,22 @@ impl AppData {
     }
 }
 
+enum AppInput {
+    Nothing,
+    Quit,
+    ToggleWireframe,
+    MoveForward,
+    MoveLeft,
+    MoveRight,
+    MoveBack,
+    MoveUp,
+    MoveDown,
+    RotateLeft,
+    RotateRight,
+    RotateUp,
+    RotateDown,
+}
+
 pub struct App {
     scene: Scene,
     camera: NodeId,
@@ -39,21 +60,25 @@ pub struct App {
 }
 
 impl App {
+    const CAMERA_MOVEMENT_FAC: f32 = 5.0;
+    const CAMERA_ROT_FAC: f32 = (10.0_f32).to_radians();
     pub fn new() -> Option<Self> {
         let mut scene = Scene::new();
 
         // This loads the teapot mesh
-        // let mut teapot = Mesh::import_obj("./examples/utah_teapot.obj").expect(
-        //     "Unable to load mesh"
-        // );
-        // teapot.use_flat_shading();
+        let mut teapot = Mesh::import_obj("./examples/utah_teapot.obj").expect(
+            "Unable to load mesh"
+        );
+        teapot.use_flat_shading();
 
         // This loads the cube mesh
-        let mut cube = Mesh::construct_cube();
-        cube.use_flat_shading();
+        // let mut cube = Mesh::construct_cube();
+        // cube.use_flat_shading();
 
         // This inserts the mesh data into the scene tree
-        let example_mesh = scene.insert(NodeData::Mesh(cube));
+        let example_mesh = scene.insert(NodeData::Mesh(teapot));
+        let example_node = scene.get_mut(example_mesh)?;
+        example_node.props.rotate((15.0f32).to_radians(), &RowMat::axis_x());
 
         let camera = scene.insert(NodeData::Camera(Camera::new(1, 1, PI / 6.0, 1.0, 9.0)));
         let c = scene.get_mut(camera)?;
@@ -66,7 +91,7 @@ impl App {
         Some(Self { scene, camera, renderer, appdata })
     }
 
-    fn sync_camera_resolution(&mut self, ctx: &Context) -> bool {
+    fn sync_camera_resolution(&mut self, width: usize, height: usize) -> bool {
         let Some(camera_node) = self.scene.get_mut(self.camera) else {
             return false;
         };
@@ -75,15 +100,107 @@ impl App {
             return false;
         };
 
-        camera.update_resolution(ctx.width() as u32, (ctx.height() * 2) as u32);
+        camera.update_resolution(width as u32, height as u32);
 
         true
     }
+
+    fn handle_input(&mut self, input: AppInput, dt: f32) -> bool {
+        use AppInput::*;
+        match input {
+            Nothing => { true }
+            Quit => { false }
+            ToggleWireframe => {
+                self.appdata.toggle_wireframe();
+                true
+            }
+            MoveForward => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = -c.props.axis_z();
+                c.translate(direction * App::CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            MoveLeft => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = c.props.axis_x();
+                c.translate(direction * App::CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            MoveBack => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = c.props.axis_z();
+                c.translate(direction * App::CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            MoveRight => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = -c.props.axis_x();
+                c.translate(direction * App::CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            MoveUp => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = RowMat::axis_y();
+                c.translate(direction * App::CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            MoveDown => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let direction = -RowMat::axis_y();
+                c.translate(direction * App::CAMERA_MOVEMENT_FAC * dt);
+                true
+            }
+            RotateLeft => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = -RowMat::axis_y();
+                c.rotate(axis, App::CAMERA_ROT_FAC * dt);
+                true
+            }
+            RotateRight => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = RowMat::axis_y();
+                c.rotate(axis, App::CAMERA_ROT_FAC * dt);
+                true
+            }
+            RotateUp => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = RowMat::axis_x();
+                c.rotate(axis, App::CAMERA_ROT_FAC * dt);
+                true
+            }
+            RotateDown => {
+                let Some(c) = self.scene.get_active_camera_mut() else {
+                    return true;
+                };
+                let axis = -RowMat::axis_x();
+                c.rotate(axis, App::CAMERA_ROT_FAC * dt);
+                true
+            }
+        }
+    }
 }
 
-impl Application for App {
-    fn on_user_start(&mut self, ctx: &mut Context) -> bool {
-        if !self.sync_camera_resolution(ctx) {
+impl Application<ConsoleRenderingContext2D, KeyEvent> for App {
+    fn on_user_start(&mut self, ctx: &mut ConsoleRenderingContext2D) -> bool {
+        if !self.sync_camera_resolution(ctx.width(), ctx.height() * 2) {
             return false;
         }
 
@@ -91,8 +208,8 @@ impl Application for App {
         true
     }
 
-    fn on_user_update(&mut self, ctx: &mut Context, dt: f32) -> bool {
-        if !self.sync_camera_resolution(ctx) {
+    fn on_user_update(&mut self, ctx: &mut ConsoleRenderingContext2D, dt: f32) -> bool {
+        if !self.sync_camera_resolution(ctx.width(), ctx.height() * 2) {
             return false;
         }
 
@@ -108,8 +225,8 @@ impl Application for App {
             return false;
         };
 
-        let axis = RowMat::<3>::from_data([[1.0, 1.0, 1.0]]);
-        cube.props.rotate(1e-3, &axis);
+        let axis = RowMat::axis_y();
+        cube.props.rotate(1.0 * dt, &axis);
 
         if self.appdata.is_wireframe {
             self.renderer.render_wireframes(&self.scene);
@@ -128,95 +245,86 @@ impl Application for App {
         if key.kind == KeyEventKind::Release {
             return true;
         }
-        const CAMERA_MOVEMENT_FAC: f32 = 100.0;
-        const CAMERA_ROT_FAC: f32 = 60.0;
-        return match key.code {
-            KeyCode::Esc => { false }
-            KeyCode::Char('z') => {
-                self.appdata.toggle_wireframe();
-                true
-            }
-            KeyCode::Char('w') => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let direction = -c.props.axis_z();
-                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
-                true
-            }
-            KeyCode::Char('a') => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let direction = c.props.axis_x();
-                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
-                true
-            }
-            KeyCode::Char('s') => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let direction = c.props.axis_z();
-                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
-                true
-            }
-            KeyCode::Char('d') => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let direction = -c.props.axis_x();
-                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
-                true
-            }
-            KeyCode::Char('q') => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let direction = RowMat::axis_y();
-                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
-                true
-            }
-            KeyCode::Char('e') => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let direction = -RowMat::axis_y();
-                c.translate(direction * CAMERA_MOVEMENT_FAC * dt);
-                true
-            }
-            KeyCode::Left => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let axis = -RowMat::axis_y();
-                c.rotate(axis, CAMERA_ROT_FAC * dt);
-                true
-            }
-            KeyCode::Right => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let axis = RowMat::axis_y();
-                c.rotate(axis, CAMERA_ROT_FAC * dt);
-                true
-            }
-            KeyCode::Up => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let axis = c.props.axis_x();
-                c.rotate(axis, CAMERA_ROT_FAC * dt);
-                true
-            }
-            KeyCode::Down => {
-                let Some(c) = self.scene.get_active_camera_mut() else {
-                    return true;
-                };
-                let axis = -c.props.axis_x();
-                c.rotate(axis, CAMERA_ROT_FAC * dt);
-                true
-            }
-            _ => { true }
+        use AppInput::*;
+
+        let input = match key.code {
+            crossterm::event::KeyCode::Esc => Quit,
+            crossterm::event::KeyCode::Char('z') => ToggleWireframe,
+            crossterm::event::KeyCode::Char('w') => MoveForward,
+            crossterm::event::KeyCode::Char('a') => MoveLeft,
+            crossterm::event::KeyCode::Char('s') => MoveBack,
+            crossterm::event::KeyCode::Char('d') => MoveRight,
+            crossterm::event::KeyCode::Char('q') => MoveUp,
+            crossterm::event::KeyCode::Char('e') => MoveDown,
+            crossterm::event::KeyCode::Left => RotateLeft,
+            crossterm::event::KeyCode::Right => RotateRight,
+            crossterm::event::KeyCode::Up => RotateUp,
+            crossterm::event::KeyCode::Down => RotateDown,
+            _ => Nothing,
         };
+
+        return self.handle_input(input, dt);
+    }
+}
+
+impl Application<WindowRenderingContext2D, winit::event::KeyEvent> for App {
+    fn on_user_start(&mut self, ctx: &mut WindowRenderingContext2D) -> bool {
+        if !self.sync_camera_resolution(ctx.width(), ctx.height()) {
+            return false;
+        }
+
+        ctx.clear();
+        true
+    }
+
+    fn on_user_update(&mut self, ctx: &mut WindowRenderingContext2D, dt: f32) -> bool {
+        if !self.sync_camera_resolution(ctx.width(), ctx.height()) {
+            return false;
+        }
+
+        let Some(cube) = self.scene.get_mut(self.appdata.example_mesh) else {
+            return false;
+        };
+
+        let axis = RowMat::axis_y();
+        cube.props.rotate(1.0 * dt, &axis);
+
+        if self.appdata.is_wireframe {
+            self.renderer.render_wireframes(&self.scene);
+        } else {
+            self.renderer.render(&self.scene);
+        }
+
+        ctx.clear();
+        ctx.fill(0x00ff0000);
+        ctx.blit_frame_buffer(&self.renderer.fb);
+
+        true
+    }
+
+    fn on_user_key_press(&mut self, key: winit::event::KeyEvent, dt: f32) -> bool {
+        if key.state != ElementState::Pressed {
+            return true;
+        }
+
+        use AppInput::*;
+
+        let input = match key.physical_key {
+            PhysicalKey::Code(winit::keyboard::KeyCode::Escape) => Quit,
+            PhysicalKey::Code(winit::keyboard::KeyCode::KeyZ) => ToggleWireframe,
+            PhysicalKey::Code(winit::keyboard::KeyCode::KeyW) => MoveForward,
+            PhysicalKey::Code(winit::keyboard::KeyCode::KeyA) => MoveLeft,
+            PhysicalKey::Code(winit::keyboard::KeyCode::KeyS) => MoveBack,
+            PhysicalKey::Code(winit::keyboard::KeyCode::KeyD) => MoveRight,
+            PhysicalKey::Code(winit::keyboard::KeyCode::KeyQ) => MoveUp,
+            PhysicalKey::Code(winit::keyboard::KeyCode::KeyE) => MoveDown,
+            PhysicalKey::Code(winit::keyboard::KeyCode::ArrowLeft) => RotateLeft,
+            PhysicalKey::Code(winit::keyboard::KeyCode::ArrowRight) => RotateRight,
+            PhysicalKey::Code(winit::keyboard::KeyCode::ArrowUp) => RotateUp,
+            PhysicalKey::Code(winit::keyboard::KeyCode::ArrowDown) => RotateDown,
+            _ => Nothing,
+        };
+
+        return self.handle_input(input, dt);
     }
 }

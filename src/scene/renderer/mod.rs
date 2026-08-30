@@ -1,6 +1,6 @@
 use crate::scene::{
     math::matrix::{ RowMat, Transform },
-    renderer::{ fragment::Fragment, mesh::{ Mesh, Triangle } },
+    renderer::{ fragment::Fragment, mesh::{ Mesh } },
     scene::{ NodeData, Scene },
 };
 
