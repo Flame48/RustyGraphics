@@ -5,4 +5,7 @@ mod buffer;
 
 // Supported Application Types
 pub mod console;
+pub use console::ConsoleRunner;
+
 pub mod window;
+pub use window::WindowRunner;

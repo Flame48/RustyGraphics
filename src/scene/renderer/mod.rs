@@ -40,12 +40,20 @@ impl FrameBuffer {
         self.depth.fill(f32::INFINITY);
     }
 
+    pub fn depth_test_idx(&self, idx: usize, depth: f32) -> bool {
+        depth < self.depth[idx]
+    }
+
+    pub fn depth_test(&self, x: u32, y: u32, depth: f32) -> bool {
+        self.depth_test_idx((y * self.width + x) as usize, depth)
+    }
+
     pub fn set_px(&mut self, x: u32, y: u32, depth: f32, color: RGBA) {
         if x >= self.width || y >= self.height {
             return;
         }
         let idx = (y * self.width + x) as usize;
-        if depth > self.depth[idx] {
+        if !self.depth_test_idx(idx, depth) {
             return;
         }
         self.depth[idx] = depth;
@@ -80,6 +88,10 @@ impl SceneRenderer {
             let v1 = tri.verts.row_mat(0);
             let v2 = tri.verts.row_mat(1);
             let v3 = tri.verts.row_mat(2);
+
+            let n1 = tri.vertex_normals.row_mat(0);
+            let n2 = tri.vertex_normals.row_mat(1);
+            let n3 = tri.vertex_normals.row_mat(2);
 
             let to_screen = |p: RowMat<4>| -> (RowMat<2>, f32) {
                 (
@@ -144,7 +156,27 @@ impl SceneRenderer {
 
                     let depth = l1 * z1 + l2 * z2 + l3 * z3;
 
-                    let frag = Fragment::new(xi, yi, depth, [0xff, 0xff, 0xff, 0xff]);
+                    if !self.fb.depth_test(xi, yi, depth) {
+                        // Fails anyways
+                        continue;
+                    }
+
+                    let normal = (n1 * l1 + n2 * l2 + n3 * l3).to_uniform();
+
+                    let mut frag = Fragment::new(
+                        xi,
+                        yi,
+                        depth,
+                        [0xff, 0xff, 0xff, 0xff],
+                        normal.data[0]
+                    );
+
+                    // Edit color based on normal
+
+                    frag.color[0] = ((frag.normal[0] * 0.5 + 0.5) * 255.0).round() as u8;
+                    frag.color[1] = ((frag.normal[1] * 0.5 + 0.5) * 255.0).round() as u8;
+                    frag.color[2] = ((frag.normal[2] * 0.5 + 0.5) * 255.0).round() as u8;
+
                     self.fb.draw_fragment(&frag);
                 }
             }
@@ -169,9 +201,13 @@ impl SceneRenderer {
             )
         };
 
-        let draw_edge = |a: (RowMat<2>, f32), b: (RowMat<2>, f32), fb: &mut FrameBuffer| {
-            let (p0, z0) = a;
-            let (p1, z1) = b;
+        let draw_edge = |
+            a: (RowMat<2>, f32, RowMat<3>),
+            b: (RowMat<2>, f32, RowMat<3>),
+            fb: &mut FrameBuffer
+        | {
+            let (p0, z0, n0) = a;
+            let (p1, z1, n1) = b;
 
             let x0 = p0.x().round() as i32;
             let y0 = p0.y().round() as i32;
@@ -192,7 +228,14 @@ impl SceneRenderer {
                 if x >= 0 && y >= 0 && (x as u32) < fb.width && (y as u32) < fb.height {
                     let t = step / steps;
                     let depth = z0 + (z1 - z0) * t;
-                    let frag = Fragment::new(x as u32, y as u32, depth, [0xff, 0xff, 0xff, 0xff]);
+                    let normal = n0 + (n1 - n0) * t;
+                    let frag = Fragment::new(
+                        x as u32,
+                        y as u32,
+                        depth,
+                        [0xff, 0xff, 0xff, 0xff],
+                        normal.data[0]
+                    );
                     fb.draw_fragment(&frag);
                 }
 
@@ -220,6 +263,10 @@ impl SceneRenderer {
             let v2 = tri.verts.row_mat(1);
             let v3 = tri.verts.row_mat(2);
 
+            let n1 = tri.vertex_normals.row_mat(0).to_uniform();
+            let n2 = tri.vertex_normals.row_mat(1).to_uniform();
+            let n3 = tri.vertex_normals.row_mat(2).to_uniform();
+
             let (p1, z1) = to_screen(v1);
             let (p2, z2) = to_screen(v2);
             let (p3, z3) = to_screen(v3);
@@ -231,9 +278,9 @@ impl SceneRenderer {
                 continue;
             }
 
-            draw_edge((p1, z1), (p2, z2), &mut self.fb);
-            draw_edge((p2, z2), (p3, z3), &mut self.fb);
-            draw_edge((p3, z3), (p1, z1), &mut self.fb);
+            draw_edge((p1, z1, n1), (p2, z2, n2), &mut self.fb);
+            draw_edge((p2, z2, n2), (p3, z3, n3), &mut self.fb);
+            draw_edge((p3, z3, n3), (p1, z1, n1), &mut self.fb);
         }
     }
 

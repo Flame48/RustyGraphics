@@ -14,7 +14,7 @@ pub fn log(msg: &str) {
 
 fn main() -> anyhow::Result<()> {
     let app = scene::App::new().expect("App failed to initialize");
-    let mut runner = application::window::WindowRunner
+    let mut runner = application::ConsoleRunner
         ::new(app)
         .expect("Unable to initialize application runner");
     runner.run()

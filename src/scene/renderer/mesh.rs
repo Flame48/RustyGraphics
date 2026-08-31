@@ -46,8 +46,8 @@ impl Triangle {
         let v0 = self.verts.row_mat(0).to_uniform();
         let v1 = self.verts.row_mat(1).to_uniform();
         let v2 = self.verts.row_mat(2).to_uniform();
-        (v1 - v0)
-            .cross(v2 - v0)
+        (v2 - v0)
+            .cross(v1 - v0)
             .norm_row()
             .to_homogenous()
     }

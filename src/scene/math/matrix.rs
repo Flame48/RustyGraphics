@@ -252,6 +252,12 @@ impl<const M: usize> Matrix<M, 4> {
         let mut result = Matrix::<M, 3>::new();
         for i in 0..M {
             let w = self.data[i][3];
+            if w.abs() <= 1e-6 {
+                for j in 0..3 {
+                    result.data[i][j] = self.data[i][j];
+                }
+                continue;
+            }
             for j in 0..3 {
                 result.data[i][j] = self.data[i][j] / w;
             }
