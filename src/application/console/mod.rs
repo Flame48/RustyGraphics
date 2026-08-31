@@ -46,12 +46,12 @@ impl<T: Application<ConsoleRenderingContext2D, KeyEvent>> ConsoleRunner<T> {
         })
     }
 
-    fn is_open(&mut self) -> io::Result<bool> {
+    fn is_open(&mut self) -> anyhow::Result<bool> {
         Ok(self.app.on_user_start(&mut self.ctx))
     }
 
     /// Begins application
-    pub fn run(&mut self) -> io::Result<()> {
+    pub fn run(&mut self) -> anyhow::Result<()> {
         let _guard = TerminalGuard::new()?;
 
         if !self.is_open()? {

@@ -70,9 +70,8 @@ impl SceneRenderer {
         (p.x() - v0.x()) * (v1.y() - v0.y()) - (p.y() - v0.y()) * (v1.x() - v0.x())
     }
 
-    fn rasterize(&self, mesh: &Mesh, transform: Transform) -> Vec<Fragment> {
+    fn rasterize(&mut self, mesh: &Mesh, transform: Transform) {
         let transformed = mesh.transform(transform);
-        let mut res = Vec::<Fragment>::new();
 
         for tri in transformed.triangles() {
             if tri.verts.data.iter().any(|v| v[3] <= 1e-6) {
@@ -145,31 +144,32 @@ impl SceneRenderer {
 
                     let depth = l1 * z1 + l2 * z2 + l3 * z3;
 
-                    res.push(Fragment::new(xi, yi, depth, [0xff, 0xff, 0xff, 0xff]));
+                    let frag = Fragment::new(xi, yi, depth, [0xff, 0xff, 0xff, 0xff]);
+                    self.fb.draw_fragment(&frag);
                 }
             }
         }
-
-        res
     }
 
-    fn rasterize_wireframe(&self, mesh: &Mesh, transform: Transform) -> Vec<Fragment> {
+    fn rasterize_wireframe(&mut self, mesh: &Mesh, transform: Transform) {
         let transformed = mesh.transform(transform);
-        let mut res = Vec::<Fragment>::new();
+
+        let fb_width = self.fb.width as f32;
+        let fb_height = self.fb.height as f32;
 
         let to_screen = |p: RowMat<4>| -> (RowMat<2>, f32) {
             (
                 RowMat::<2>::from_data([
                     [
-                        (p.data[0][0] * 0.5 + 0.5) * (self.fb.width as f32),
-                        (p.data[0][1] * 0.5 + 0.5) * (self.fb.height as f32),
+                        (p.data[0][0] * 0.5 + 0.5) * (fb_width as f32),
+                        (p.data[0][1] * 0.5 + 0.5) * (fb_height as f32),
                     ],
                 ]),
                 p.data[0][2],
             )
         };
 
-        let draw_edge = |a: (RowMat<2>, f32), b: (RowMat<2>, f32), acc: &mut Vec<Fragment>| {
+        let draw_edge = |a: (RowMat<2>, f32), b: (RowMat<2>, f32), fb: &mut FrameBuffer| {
             let (p0, z0) = a;
             let (p1, z1) = b;
 
@@ -189,10 +189,11 @@ impl SceneRenderer {
 
             let (mut x, mut y) = (x0, y0);
             loop {
-                if x >= 0 && y >= 0 && (x as u32) < self.fb.width && (y as u32) < self.fb.height {
+                if x >= 0 && y >= 0 && (x as u32) < fb.width && (y as u32) < fb.height {
                     let t = step / steps;
                     let depth = z0 + (z1 - z0) * t;
-                    acc.push(Fragment::new(x as u32, y as u32, depth, [0xff, 0xff, 0xff, 0xff]));
+                    let frag = Fragment::new(x as u32, y as u32, depth, [0xff, 0xff, 0xff, 0xff]);
+                    fb.draw_fragment(&frag);
                 }
 
                 if x == x1 && y == y1 {
@@ -230,12 +231,10 @@ impl SceneRenderer {
                 continue;
             }
 
-            draw_edge((p1, z1), (p2, z2), &mut res);
-            draw_edge((p2, z2), (p3, z3), &mut res);
-            draw_edge((p3, z3), (p1, z1), &mut res);
+            draw_edge((p1, z1), (p2, z2), &mut self.fb);
+            draw_edge((p2, z2), (p3, z3), &mut self.fb);
+            draw_edge((p3, z3), (p1, z1), &mut self.fb);
         }
-
-        res
     }
 
     pub fn render(&mut self, scene: &Scene) {
@@ -266,12 +265,7 @@ impl SceneRenderer {
             let mut mvp = mesh_to_world.extend_forward(view_transform);
             mvp.extend_forward_mut(proj_transform);
 
-            let fragments = self.rasterize(mesh, mvp);
-
-            // Render fragments to buffer
-            for frag in fragments {
-                self.fb.draw_fragment(&frag);
-            }
+            self.rasterize(mesh, mvp);
         }
     }
 
@@ -299,13 +293,7 @@ impl SceneRenderer {
         for (mesh, mesh_to_world) in meshes {
             let mut mvp = mesh_to_world.extend_forward(view_transform);
             mvp.extend_forward_mut(proj_transform);
-
-            let fragments = self.rasterize_wireframe(mesh, mvp);
-
-            // Render fragments to buffer
-            for frag in fragments {
-                self.fb.draw_fragment(&frag);
-            }
+            self.rasterize_wireframe(mesh, mvp);
         }
     }
 }

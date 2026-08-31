@@ -44,11 +44,7 @@ impl ConsoleRenderingContext2D {
             for x in 0..self.width {
                 let i = (y as usize) * (self.width as usize) + (x as usize);
 
-                if self.back[i] == self.front[i] {
-                    continue;
-                }
-
-                let cell = self.back[i];
+                let cell = self.buffer[i];
 
                 if cursor != Some((x, y)) {
                     queue!(out, MoveTo(x as u16, y as u16))?;
@@ -71,7 +67,6 @@ impl ConsoleRenderingContext2D {
         }
 
         out.flush()?;
-        self.buf.swap();
 
         Ok(())
     }
@@ -80,8 +75,7 @@ impl ConsoleRenderingContext2D {
         self.width = width;
         self.height = height;
         let len = (width as usize) * (height as usize);
-        self.front = vec![Cell::default(); len];
-        self.back = vec![Cell::default(); len];
+        self.buffer = vec![Cell::default(); len];
     }
 
     fn to_color(c: RGBA) -> crossterm::style::Color {

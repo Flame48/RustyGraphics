@@ -8,21 +8,9 @@ use crate::{ application::buffer::ScreenBuffer2D, scene::renderer::FrameBuffer }
 type Cell = u32;
 
 pub struct WindowRenderingContext2D {
-    buf: ScreenBuffer2D<Cell>,
     surface: Surface<Rc<Window>, Rc<Window>>,
-}
-
-impl Deref for WindowRenderingContext2D {
-    type Target = ScreenBuffer2D<Cell>;
-    fn deref(&self) -> &Self::Target {
-        &self.buf
-    }
-}
-
-impl DerefMut for WindowRenderingContext2D {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.buf
-    }
+    width: usize,
+    height: usize,
 }
 
 impl WindowRenderingContext2D {
@@ -39,8 +27,9 @@ impl WindowRenderingContext2D {
             .unwrap();
 
         Ok(Self {
-            buf: ScreenBuffer2D::new(size.width as usize, size.height as usize),
             surface,
+            width: size.width.max(1) as usize,
+            height: size.height.max(1) as usize,
         })
     }
 
@@ -51,16 +40,9 @@ impl WindowRenderingContext2D {
         ) else {
             return;
         };
-        self.buf.resize(width as usize, height as usize);
         let _ = self.surface.resize(w, h);
-    }
-
-    pub fn present(&mut self) {
-        if let Ok(mut sb) = self.surface.buffer_mut() {
-            sb.copy_from_slice(&self.buf.front); // Deref to front buffer, matching len
-            self.buf.swap();
-            let _ = sb.present();
-        }
+        self.width = width;
+        self.height = height;
     }
 
     fn to_pixel(c: [u8; 4]) -> u32 {
@@ -68,21 +50,35 @@ impl WindowRenderingContext2D {
         ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
     }
 
-    pub fn blit_frame_buffer(&mut self, fb: &FrameBuffer) {
-        if (fb.width as usize) == self.width && (fb.height as usize) == self.height {
-            for (dst, &src) in self.back.iter_mut().zip(fb.color.iter()) {
-                *dst = WindowRenderingContext2D::to_pixel(src);
-            }
+    pub fn fill(&mut self, p: u32) {
+        if let Ok(mut sb) = self.surface.buffer_mut() {
+            sb.fill(p);
         }
+    }
 
-        let cols = self.width().min(fb.width as usize);
-        let rows = self.height().min(fb.height as usize);
+    pub fn clear(&mut self) {
+        self.fill(0);
+    }
 
-        for y in 0..rows {
-            for x in 0..cols {
-                let idx = ((y as u32) * fb.width + (x as u32)) as usize;
-                self.put(WindowRenderingContext2D::to_pixel(fb.color[idx]), x, y);
+    pub fn present(&mut self, fb: &FrameBuffer) {
+        if let Ok(mut sb) = self.surface.buffer_mut() {
+            if
+                (fb.width as usize) == (sb.width().get() as usize) &&
+                (fb.height as usize) == (sb.height().get() as usize)
+            {
+                for (dst, &src) in sb.iter_mut().zip(fb.color.iter()) {
+                    *dst = WindowRenderingContext2D::to_pixel(src);
+                }
             }
+            let _ = sb.present();
         }
+    }
+
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.height
     }
 }

@@ -70,8 +70,6 @@ impl<T: Application<WindowRenderingContext2D, KeyEvent>> WindowRunner<T> {
                             if !self.app.on_user_update(&mut self.ctx, dt) {
                                 window_target.exit();
                             }
-
-                            self.ctx.present();
                         }
 
                         _ => {}

@@ -296,8 +296,7 @@ impl Application<WindowRenderingContext2D, winit::event::KeyEvent> for App {
         }
 
         ctx.clear();
-        ctx.fill(0x00ff0000);
-        ctx.blit_frame_buffer(&self.renderer.fb);
+        ctx.present(&self.renderer.fb);
 
         true
     }

@@ -1,8 +1,7 @@
 pub struct ScreenBuffer2D<P: Copy + PartialEq + Default> {
     pub width: usize,
     pub height: usize,
-    pub front: Vec<P>,
-    pub back: Vec<P>,
+    pub buffer: Vec<P>,
 }
 
 impl<P: Copy + PartialEq + Default> ScreenBuffer2D<P> {
@@ -11,8 +10,7 @@ impl<P: Copy + PartialEq + Default> ScreenBuffer2D<P> {
         Self {
             width,
             height,
-            front: vec![P::default(); len],
-            back: vec![P::default(); len],
+            buffer: vec![P::default(); len],
         }
     }
 
@@ -24,7 +22,7 @@ impl<P: Copy + PartialEq + Default> ScreenBuffer2D<P> {
     }
 
     pub fn fill(&mut self, p: P) {
-        self.back.fill(p);
+        self.buffer.fill(p);
     }
 
     pub fn clear(&mut self) {
@@ -33,7 +31,7 @@ impl<P: Copy + PartialEq + Default> ScreenBuffer2D<P> {
 
     pub fn put(&mut self, p: P, x: usize, y: usize) {
         if let Some(i) = self.idx(x, y) {
-            self.back[i] = p;
+            self.buffer[i] = p;
         }
     }
 
@@ -90,11 +88,6 @@ impl<P: Copy + PartialEq + Default> ScreenBuffer2D<P> {
         self.width = width;
         self.height = height;
         let len = (width as usize) * (height as usize);
-        self.front = vec![P::default(); len];
-        self.back = vec![P::default(); len];
-    }
-
-    pub fn swap(&mut self) {
-        std::mem::swap(&mut self.front, &mut self.back);
+        self.buffer = vec![P::default(); len];
     }
 }
