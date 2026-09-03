@@ -490,7 +490,7 @@ impl Quaternion {
         self.clone_from(&self.mul(&other.to_quaternion_matrix()));
     }
 
-    pub fn rotate(&self, axis: &RowMat<3>, by: f32) -> Self {
+    pub fn rotate_local(&self, axis: &RowMat<3>, by: f32) -> Self {
         let axis = axis.norm_row();
         let half_theta = by * 0.5;
         let q_ax = Quaternion::from_data([
@@ -504,7 +504,7 @@ impl Quaternion {
         return self.hamiltonion_quaternion_mul(&q_ax).norm_row();
     }
 
-    pub fn rotate_mut(&mut self, axis: &RowMat<3>, by: f32) {
+    pub fn rotate_local_mut(&mut self, axis: &RowMat<3>, by: f32) {
         let axis = axis.norm_row();
         let half_theta = by * 0.5;
         let q_ax = Quaternion::from_data([
@@ -516,6 +516,36 @@ impl Quaternion {
             ],
         ]);
         self.hamiltonion_quaternion_mul_mut(&q_ax);
+        self.norm_row_to();
+    }
+
+    pub fn rotate_global(&self, axis: &RowMat<3>, by: f32) -> Self {
+        let axis = axis.norm_row();
+        let half_theta = by * 0.5;
+        let q_ax = Quaternion::from_data([
+            [
+                half_theta.cos(),
+                axis.x() * half_theta.sin(),
+                axis.y() * half_theta.sin(),
+                axis.z() * half_theta.sin(),
+            ],
+        ]);
+        return q_ax.hamiltonion_quaternion_mul(self).norm_row();
+    }
+
+    pub fn rotate_global_mut(&mut self, axis: &RowMat<3>, by: f32) {
+        let axis = axis.norm_row();
+        let half_theta = by * 0.5;
+        let mut q_ax = Quaternion::from_data([
+            [
+                half_theta.cos(),
+                axis.x() * half_theta.sin(),
+                axis.y() * half_theta.sin(),
+                axis.z() * half_theta.sin(),
+            ],
+        ]);
+        q_ax.hamiltonion_quaternion_mul_mut(self);
+        self.clone_from(&q_ax);
         self.norm_row_to();
     }
 }

@@ -1,8 +1,6 @@
-use std::{ collections::VecDeque, ops::AddAssign };
-
 use crate::scene::{
-    math::matrix::{ Matrix, Quaternion, RowMat, SqMat, Transform },
-    renderer::{ camera::Camera, mesh::Mesh },
+    math::matrix::{ Quaternion, RowMat, Transform },
+    renderer::{ camera::Camera, light::Light, mesh::Mesh },
     scene::NodeData::Empty,
 };
 
@@ -15,6 +13,7 @@ pub enum NodeData {
     Empty,
     Mesh(Mesh),
     Camera(Camera),
+    Light(Light),
 }
 
 pub struct NodeProperties {
@@ -45,7 +44,7 @@ impl NodeProperties {
     }
 
     pub fn rotate(&mut self, by: f32, axis: &RowMat<3>) {
-        self.rotation.rotate_mut(axis, by);
+        self.rotation.rotate_local_mut(axis, by);
     }
 
     pub fn axis_x(&self) -> RowMat<3> {
@@ -86,8 +85,12 @@ impl Node {
         self.props.scale.clone_from(&scale);
     }
 
-    pub fn rotate(&mut self, axis: RowMat<3>, by: f32) {
-        self.props.rotation.rotate_mut(&axis, by);
+    pub fn rotate_local(&mut self, axis: RowMat<3>, by: f32) {
+        self.props.rotation.rotate_local_mut(&axis, by);
+    }
+
+    pub fn rotate_global(&mut self, axis: RowMat<3>, by: f32) {
+        self.props.rotation.rotate_global_mut(&axis, by);
     }
 }
 
@@ -186,6 +189,31 @@ impl SceneTree {
 
             if let NodeData::Mesh(mesh) = &node_ptr.data {
                 res.push((mesh, next_transform));
+            }
+
+            for &child_id in &node_ptr.children_ids {
+                stack.push((child_id, next_transform));
+            }
+        }
+
+        return res;
+    }
+
+    pub fn get_light_transforms(&self) -> Vec<(&Light, Transform)> {
+        let mut res = Vec::<(&Light, Transform)>::new();
+
+        let mut stack = Vec::<(NodeId, Transform)>::new();
+        stack.push((self.root, Transform::default()));
+
+        while let Some((node_id, transform)) = stack.pop() {
+            let Some(node_ptr) = self.get(node_id) else {
+                continue;
+            };
+
+            let next_transform = node_ptr.props.get_transform().extend_forward(transform);
+
+            if let NodeData::Light(light) = &node_ptr.data {
+                res.push((light, next_transform));
             }
 
             for &child_id in &node_ptr.children_ids {

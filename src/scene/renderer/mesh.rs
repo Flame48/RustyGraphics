@@ -32,22 +32,51 @@ impl Triangle {
     }
 
     pub fn transform(&self, transform: Transform) -> Self {
-        let mut verts = self.verts * transform.forward;
-        verts.normalize_homogenous_mut();
-        let mut vertex_normals = self.vertex_normals * transform.forward;
-        for i in 0..3 {
-            let n = vertex_normals.row_mat(i).to_uniform().norm_row();
-            vertex_normals.data[i] = [n.x(), n.y(), n.z(), 0.0];
+        self.transform_geometry(transform);
+        self.transform_normals(transform);
+        Self {
+            verts: self.verts,
+            vertex_normals: self.vertex_normals,
+            vertex_data: [VertexData::new(); 3],
         }
-        Self { verts, vertex_normals, vertex_data: [VertexData::new(); 3] }
+    }
+
+    pub fn transform_geometry(&self, transform: Transform) -> Self {
+        let mut res = self.clone();
+        res.transform_geometry_mut(transform);
+        res
+    }
+
+    pub fn transform_normals(&self, transform: Transform) -> Self {
+        let mut res = self.clone();
+        res.transform_normals_mut(transform);
+        res
+    }
+
+    pub fn transform_mut(&mut self, transform: Transform) {
+        self.transform_geometry_mut(transform);
+        self.transform_normals_mut(transform);
+    }
+
+    pub fn transform_geometry_mut(&mut self, transform: Transform) {
+        self.verts = self.verts * transform.forward;
+        self.verts.normalize_homogenous_mut();
+    }
+
+    pub fn transform_normals_mut(&mut self, transform: Transform) {
+        let transformed_vertex_normals = self.vertex_normals * transform.forward;
+        for i in 0..3 {
+            let n = transformed_vertex_normals.row_mat(i).to_uniform().norm_row();
+            self.vertex_normals.data[i] = [n.x(), n.y(), n.z(), 0.0];
+        }
     }
 
     fn compute_face_normal(&self) -> RowMat<4> {
         let v0 = self.verts.row_mat(0).to_uniform();
         let v1 = self.verts.row_mat(1).to_uniform();
         let v2 = self.verts.row_mat(2).to_uniform();
-        (v2 - v0)
-            .cross(v1 - v0)
+        (v1 - v0)
+            .cross(v2 - v0)
             .norm_row()
             .to_homogenous()
     }
@@ -62,11 +91,16 @@ impl Triangle {
     }
 }
 
+#[derive(Clone)]
 pub struct Mesh {
     tris: Vec<Triangle>,
 }
 
 impl Mesh {
+    pub fn new(tris: Vec<Triangle>) -> Self {
+        Self { tris }
+    }
+
     pub fn import_obj(path: impl AsRef<Path>) -> Result<Self, String> {
         let Ok(contents) = fs::read_to_string(path) else {
             return Err(format!("Unable to open file"));
@@ -248,6 +282,40 @@ impl Mesh {
             .map(|t| t.transform(transform))
             .collect();
         Self { tris }
+    }
+
+    pub fn transform_geometry(&self, transform: Transform) -> Self {
+        let tris = self.tris
+            .iter()
+            .map(|t| t.transform_geometry(transform))
+            .collect();
+        Self { tris }
+    }
+
+    pub fn transform_normals(&self, transform: Transform) -> Self {
+        let tris = self.tris
+            .iter()
+            .map(|t| t.transform_normals(transform))
+            .collect();
+        Self { tris }
+    }
+
+    pub fn transform_mut(&mut self, transform: Transform) {
+        for tri in self.tris.iter_mut() {
+            tri.transform_mut(transform);
+        }
+    }
+
+    pub fn transform_geometry_mut(&mut self, transform: Transform) {
+        for tri in self.tris.iter_mut() {
+            tri.transform_geometry_mut(transform);
+        }
+    }
+
+    pub fn transform_normals_mut(&mut self, transform: Transform) {
+        for tri in self.tris.iter_mut() {
+            tri.transform_normals_mut(transform);
+        }
     }
 
     pub fn triangles(&self) -> &Vec<Triangle> {

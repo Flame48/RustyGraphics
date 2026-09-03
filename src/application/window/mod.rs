@@ -13,18 +13,25 @@ pub mod context;
 
 pub struct WindowRunner<T: Application<WindowRenderingContext2D, KeyEvent>> {
     app: T,
+    render_resolution: (usize, usize),
     ctx: WindowRenderingContext2D,
     window: Rc<Window>,
     event_loop: Option<EventLoop<()>>,
 }
 
 impl<T: Application<WindowRenderingContext2D, KeyEvent>> WindowRunner<T> {
-    pub fn new(app: T) -> anyhow::Result<Self> {
+    pub fn new(app: T, render_w: usize, render_h: usize) -> anyhow::Result<Self> {
         let event_loop = EventLoop::new()?;
         let window = Rc::new(WindowBuilder::new().with_title("Graphics").build(&event_loop)?);
-        let ctx = WindowRenderingContext2D::new(window.clone())?;
+        let ctx = WindowRenderingContext2D::new(window.clone(), render_w, render_h)?;
 
-        Ok(WindowRunner { app, ctx, window, event_loop: Some(event_loop) })
+        Ok(WindowRunner {
+            app,
+            ctx,
+            window,
+            render_resolution: (render_w, render_h),
+            event_loop: Some(event_loop),
+        })
     }
 
     fn is_open(&mut self) -> anyhow::Result<bool> {
@@ -50,8 +57,9 @@ impl<T: Application<WindowRenderingContext2D, KeyEvent>> WindowRunner<T> {
                     match window_event {
                         WindowEvent::CloseRequested => window_target.exit(),
 
-                        WindowEvent::Resized(to) =>
-                            self.ctx.resize(to.width as usize, to.height as usize),
+                        WindowEvent::Resized(to) => {
+                            self.ctx.resize(to.width as usize, to.height as usize)
+                        }
 
                         WindowEvent::KeyboardInput { event: key_event, .. } => {
                             let current_time = Instant::now();

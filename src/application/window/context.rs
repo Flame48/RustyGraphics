@@ -1,11 +1,9 @@
-use std::{ num::NonZeroU32, ops::{ Deref, DerefMut }, rc::Rc };
+use std::{ num::NonZeroU32, rc::Rc };
 
 use softbuffer::{ Context, Surface };
 use winit::window::Window;
 
-use crate::{ application::buffer::ScreenBuffer2D, scene::renderer::FrameBuffer };
-
-type Cell = u32;
+use crate::scene::renderer::FrameBuffer;
 
 pub struct WindowRenderingContext2D {
     surface: Surface<Rc<Window>, Rc<Window>>,
@@ -14,7 +12,7 @@ pub struct WindowRenderingContext2D {
 }
 
 impl WindowRenderingContext2D {
-    pub fn new(window: Rc<Window>) -> anyhow::Result<Self> {
+    pub fn new(window: Rc<Window>, render_w: usize, render_h: usize) -> anyhow::Result<Self> {
         let size = window.inner_size();
         let context = Context::new(window.clone()).unwrap();
 
@@ -28,8 +26,8 @@ impl WindowRenderingContext2D {
 
         Ok(Self {
             surface,
-            width: size.width.max(1) as usize,
-            height: size.height.max(1) as usize,
+            width: render_w.max(1),
+            height: render_h.max(1),
         })
     }
 
@@ -41,8 +39,8 @@ impl WindowRenderingContext2D {
             return;
         };
         let _ = self.surface.resize(w, h);
-        self.width = width;
-        self.height = height;
+        // self.width = width;
+        // self.height = height;
     }
 
     fn to_pixel(c: [u8; 4]) -> u32 {
@@ -62,12 +60,25 @@ impl WindowRenderingContext2D {
 
     pub fn present(&mut self, fb: &FrameBuffer) {
         if let Ok(mut sb) = self.surface.buffer_mut() {
-            if
-                (fb.width as usize) == (sb.width().get() as usize) &&
-                (fb.height as usize) == (sb.height().get() as usize)
-            {
+            let sb_width = sb.width().get() as usize;
+            let sb_height = sb.height().get() as usize;
+            let fb_width = fb.width as usize;
+            let fb_height = fb.height as usize;
+            if (fb_width as usize) == sb_width && fb_height == sb_height {
                 for (dst, &src) in sb.iter_mut().zip(fb.color.iter()) {
                     *dst = WindowRenderingContext2D::to_pixel(src);
+                }
+            } else if fb_width > 0 && fb_height > 0 {
+                for y in 0..sb_height {
+                    let sy = (y * fb_height) / sb_height;
+                    let src_row = sy * fb_width;
+                    let dst_row = y * sb_width;
+                    for x in 0..sb_width {
+                        let sx = (x * fb_width) / sb_width;
+                        sb[dst_row + x] = WindowRenderingContext2D::to_pixel(
+                            fb.color[src_row + sx]
+                        );
+                    }
                 }
             }
             let _ = sb.present();

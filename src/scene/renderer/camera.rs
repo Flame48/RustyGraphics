@@ -31,20 +31,20 @@ impl Camera {
         let f_inv = 1.0 / f;
         let af_inv = 1.0 / af;
         let z_inv = 1.0 / self.z_near;
-        let zq_inv = (1.0 / self.z_near) * q;
+        let zq_inv = 1.0 / zq;
 
         Transform {
             forward: SqMat::<4>::from_data([
                 [af, 0.0, 0.0, 0.0],
                 [0.0, f, 0.0, 0.0],
-                [0.0, 0.0, q, 1.0],
+                [0.0, 0.0, -q, -1.0],
                 [0.0, 0.0, -zq, 0.0],
             ]),
             reverse: SqMat::<4>::from_data([
                 [af_inv, 0.0, 0.0, 0.0],
                 [0.0, f_inv, 0.0, 0.0],
                 [0.0, 0.0, 0.0, -zq_inv],
-                [0.0, 0.0, 1.0, z_inv],
+                [0.0, 0.0, -1.0, z_inv],
             ]),
         }
     }
