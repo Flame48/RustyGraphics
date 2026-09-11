@@ -114,6 +114,14 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
         self.map_to(|x| x * by)
     }
 
+    pub fn scalar_div(&self, by: f32) -> Self {
+        self.map(|x| x / by)
+    }
+
+    pub fn scalar_div_to(&mut self, by: f32) {
+        self.map_to(|x| x / by)
+    }
+
     pub fn transpose(&self) -> Matrix<N, M> {
         let mut result = Matrix::<N, M>::new();
         for i in 0..M {
@@ -190,6 +198,20 @@ impl<const M: usize, const N: usize> std::ops::Mul<f32> for Matrix<M, N> {
 impl<const M: usize, const N: usize> std::ops::MulAssign<f32> for Matrix<M, N> {
     fn mul_assign(&mut self, other: f32) {
         self.scalar_mul_to(other);
+    }
+}
+
+impl<const M: usize, const N: usize> std::ops::Div<f32> for Matrix<M, N> {
+    type Output = Matrix<M, N>;
+
+    fn div(self, other: f32) -> Matrix<M, N> {
+        Matrix::scalar_div(&self, other)
+    }
+}
+
+impl<const M: usize, const N: usize> std::ops::DivAssign<f32> for Matrix<M, N> {
+    fn div_assign(&mut self, other: f32) {
+        Matrix::scalar_div_to(self, other);
     }
 }
 

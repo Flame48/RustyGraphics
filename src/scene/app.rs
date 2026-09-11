@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 
 use crate::{
+    Args,
     application::{
         Application,
         console::{ ConsoleRenderingContext2D, cell::{ Cell, CellStyle } },
@@ -58,7 +59,7 @@ impl App {
     const CAMERA_MOVEMENT_FAC: f32 = 20.0;
     const CAMERA_ROT_FAC: f32 = (90.0_f32).to_radians();
 
-    pub fn new() -> Option<Self> {
+    fn new_debug() -> Option<Self> {
         let mut scene = Scene::new();
 
         // This loads the teapot mesh
@@ -80,7 +81,7 @@ impl App {
         let example_node = scene.get_mut(example_mesh)?;
         example_node.props.rotate((15.0f32).to_radians(), &RowMat::axis_x());
 
-        let light = scene.insert(NodeData::Light(Light { intensity: 1.0 }));
+        let light = scene.insert(NodeData::Light(Light::new(1.0)));
         let light_node = scene.get_mut(light)?;
         light_node.props.translate(RowMat::from_data([[5.0, 20.0, 10.0]]));
 
@@ -93,6 +94,48 @@ impl App {
         let appdata = AppData::new(example_mesh);
 
         Some(Self { scene, camera, renderer, appdata })
+    }
+
+    fn new_obj_preview(obj_path: String, scale_factor: f32) -> Option<Self> {
+        let mut scene = Scene::new();
+
+        let Ok(mut imported) = Mesh::import_obj(&obj_path) else {
+            println!("Unable to load obj file at path \"{}\".", obj_path);
+            return None;
+        };
+        imported.transform_mut(Transform::translation(-imported.mean_triangles_positions()));
+        imported.transform_mut(Transform::scale(RowMat::<3>::from_data([[scale_factor; 3]])));
+        imported.use_flat_shading();
+
+        // This inserts the mesh data into the scene tree
+        let example_mesh = scene.insert(NodeData::Mesh(imported));
+        let example_node = scene.get_mut(example_mesh)?;
+        example_node.props.rotate((15.0f32).to_radians(), &RowMat::axis_x());
+
+        let light = scene.insert(NodeData::Light(Light::new(1.0)));
+        let light_node = scene.get_mut(light)?;
+        light_node.props.translate(RowMat::from_data([[5.0, 20.0, 10.0]]));
+
+        let camera = scene.insert(NodeData::Camera(Camera::new(1, 1, PI / 6.0, 1.0, 9.0)));
+        let c = scene.get_mut(camera)?;
+        c.props.translate(RowMat::<3>::from_data([[0.0, 0.0, 10.0]]));
+
+        let renderer = SceneRenderer::new();
+
+        let appdata = AppData::new(example_mesh);
+
+        Some(Self { scene, camera, renderer, appdata })
+    }
+
+    pub fn new(args: Args) -> Option<Self> {
+        if args.debug {
+            return App::new_debug();
+        } else if let Some(obj_path) = args.inspect {
+            // Process
+            let scale_factor = args.scale_factor.unwrap_or(1.0);
+            return App::new_obj_preview(obj_path, scale_factor);
+        }
+        panic!("Invalid Arguments!");
     }
 
     fn sync_camera_resolution(&mut self, width: usize, height: usize) -> bool {

@@ -6,6 +6,13 @@ use crate::scene::{
 pub struct Light {
     pub intensity: f32,
 }
+
+impl Light {
+    pub fn new(intensity: f32) -> Self {
+        Self { intensity }
+    }
+}
+
 pub trait LightingModel {
     fn shade(
         frag: &mut Fragment,
@@ -41,6 +48,8 @@ impl LightingModel for DiffuseLightingModel {
 
         let light_distance = light_pos.mag_row();
         let light_dir = light_pos * (1.0 / light_distance);
+
+        // let light_distance_attenuation = 1.0 / Self::attenuation_distance_function(light_distance);
 
         let light_direction_similarity = light_dir.dot(normal).max(0.0);
         let overall_light_intensity = (AMBIENT + light.intensity * light_direction_similarity).min(

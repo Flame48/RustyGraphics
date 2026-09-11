@@ -89,6 +89,16 @@ impl Triangle {
             norm.serial_row(),
         ]);
     }
+
+    pub fn center(&self) -> RowMat<3> {
+        let vs = self.verts.to_uniform();
+
+        let v1 = vs.row_mat(0);
+        let v2 = vs.row_mat(1);
+        let v3 = vs.row_mat(2);
+
+        return (v1 + v2 + v3) / 3.0;
+    }
 }
 
 #[derive(Clone)]
@@ -326,5 +336,16 @@ impl Mesh {
         for tri in self.tris.iter_mut() {
             tri.use_computed_normals();
         }
+    }
+
+    pub fn mean_triangles_positions(&self) -> RowMat<3> {
+        let mut acc = RowMat::<3>::new();
+        if self.tris.len() == 0 {
+            return acc;
+        }
+        for tri in self.triangles() {
+            acc += tri.center();
+        }
+        return acc / (self.tris.len() as f32);
     }
 }
