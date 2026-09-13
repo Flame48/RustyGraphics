@@ -2,21 +2,10 @@ use std::{ fs, path::Path };
 
 use crate::scene::math::{ matrix::{ Matrix, RowMat }, transforms::Transform };
 
-// Will store vertex data such as UV coordinates, color, etc.
-#[derive(Clone, Copy)]
-pub struct VertexData {}
-
-impl VertexData {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
 #[derive(Clone, Copy)]
 pub struct Triangle {
     pub verts: Matrix<3, 4>,
     pub vertex_normals: Matrix<3, 4>,
-    pub vertex_data: [VertexData; 3],
 }
 
 impl Triangle {
@@ -27,7 +16,6 @@ impl Triangle {
                 data: [to_homogeneous(p1), to_homogeneous(p2), to_homogeneous(p3)],
             },
             vertex_normals: Matrix::<3, 4>::new(),
-            vertex_data: [VertexData::new(); 3],
         }
     }
 
@@ -37,7 +25,6 @@ impl Triangle {
         Self {
             verts: self.verts,
             vertex_normals: self.vertex_normals,
-            vertex_data: [VertexData::new(); 3],
         }
     }
 
