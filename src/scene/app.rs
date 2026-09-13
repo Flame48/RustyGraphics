@@ -8,7 +8,10 @@ use crate::{
     },
     scene::{
         math::matrix::{ RowMat, Transform },
-        renderer::{ SceneRenderer, camera::Camera, light::{ Color, Light }, mesh::{ Mesh } },
+        camera::Camera,
+        light::{ Color, Light },
+        mesh::Mesh,
+        renderer::{ SceneRenderer },
         scene::{ NodeData, NodeId, Scene },
     },
 };

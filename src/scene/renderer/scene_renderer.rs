@@ -1,11 +1,8 @@
 use crate::scene::{
     math::matrix::{ RowMat, Transform },
-    renderer::{
-        fragment::Fragment,
-        frame_buffer::FrameBuffer,
-        light::{ DiffuseLightingModel, LightingModel },
-        mesh::Mesh,
-    },
+    renderer::{ fragment::Fragment, frame_buffer::FrameBuffer },
+    light::{ DiffuseLightingModel, LightingModel },
+    mesh::Mesh,
     scene::{ NodeData, Scene },
 };
 

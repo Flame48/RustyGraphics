@@ -2,7 +2,8 @@ use std::ops::{ Add, AddAssign, Mul, Sub };
 
 use crate::scene::{
     math::matrix::{ RowMat, Transform },
-    renderer::{ camera::Camera, fragment::Fragment },
+    renderer::fragment::Fragment,
+    camera::Camera,
 };
 
 #[derive(Clone, Copy)]
@@ -12,6 +13,7 @@ pub struct Color {
     pub b: f32,
     pub a: f32,
 }
+
 impl Color {
     const WHITE: Color = Color::new(255.0, 255.0, 255.0, 255.0);
 

@@ -1,7 +1,8 @@
 use crate::scene::{
     math::matrix::{ Quaternion, RowMat, Transform },
-    renderer::{ camera::Camera, light::Light, mesh::Mesh },
-    scene::NodeData::Empty,
+    camera::Camera,
+    light::Light,
+    mesh::Mesh,
 };
 
 use slotmap::{ DefaultKey, SlotMap };
@@ -15,6 +16,8 @@ pub enum NodeData {
     Camera(Camera),
     Light(Light),
 }
+
+use NodeData::Empty;
 
 pub struct NodeProperties {
     pub position: RowMat<3>,

@@ -1,7 +1,4 @@
-pub mod mesh;
-pub mod camera;
-pub mod light;
-mod fragment;
+pub mod fragment;
 mod frame_buffer;
 mod scene_renderer;
 
