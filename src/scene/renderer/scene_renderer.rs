@@ -1,5 +1,5 @@
 use crate::scene::{
-    math::matrix::{ RowMat, Transform },
+    math::{ matrix::RowMat, transforms::Transform },
     renderer::{ fragment::Fragment, frame_buffer::FrameBuffer },
     light::{ DiffuseLightingModel, LightingModel },
     mesh::Mesh,

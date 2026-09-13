@@ -7,7 +7,7 @@ use crate::{
         window::context::WindowRenderingContext2D,
     },
     scene::{
-        math::matrix::{ RowMat, Transform },
+        math::{ matrix::RowMat, transforms::Transform },
         camera::Camera,
         light::{ Color, Light },
         mesh::Mesh,

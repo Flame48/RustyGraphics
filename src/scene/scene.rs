@@ -1,5 +1,5 @@
 use crate::scene::{
-    math::matrix::{ Quaternion, RowMat, Transform },
+    math::{ matrix::{ Quaternion, RowMat }, transforms::Transform },
     camera::Camera,
     light::Light,
     mesh::Mesh,

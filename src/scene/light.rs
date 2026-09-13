@@ -1,7 +1,7 @@
 use std::ops::{ Add, AddAssign, Mul, Sub };
 
 use crate::scene::{
-    math::matrix::{ RowMat, Transform },
+    math::{ matrix::RowMat, transforms::Transform },
     renderer::fragment::Fragment,
     camera::Camera,
 };

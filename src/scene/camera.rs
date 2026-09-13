@@ -1,4 +1,4 @@
-use crate::scene::math::matrix::{ SqMat, Transform };
+use crate::scene::math::{ matrix::SqMat, transforms::Transform };
 
 #[derive(Clone, Copy)]
 pub struct Camera {

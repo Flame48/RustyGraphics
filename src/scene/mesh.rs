@@ -1,6 +1,6 @@
 use std::{ fs, path::Path };
 
-use crate::scene::math::matrix::{ Matrix, RowMat, Transform };
+use crate::scene::math::{ matrix::{ Matrix, RowMat }, transforms::Transform };
 
 // Will store vertex data such as UV coordinates, color, etc.
 #[derive(Clone, Copy)]
