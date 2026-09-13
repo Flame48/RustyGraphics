@@ -12,7 +12,7 @@ pub type Quaternion = RowMat<4>;
 // MARK: General Matrix
 
 impl<const M: usize, const N: usize> Matrix<M, N> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { data: [[0.0; N]; M] }
     }
 

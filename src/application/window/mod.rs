@@ -13,7 +13,6 @@ pub mod context;
 
 pub struct WindowRunner<T: Application<WindowRenderingContext2D, KeyEvent>> {
     app: T,
-    render_resolution: (usize, usize),
     ctx: WindowRenderingContext2D,
     window: Rc<Window>,
     event_loop: Option<EventLoop<()>>,
@@ -29,7 +28,6 @@ impl<T: Application<WindowRenderingContext2D, KeyEvent>> WindowRunner<T> {
             app,
             ctx,
             window,
-            render_resolution: (render_w, render_h),
             event_loop: Some(event_loop),
         })
     }

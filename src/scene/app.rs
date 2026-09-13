@@ -1,15 +1,14 @@
 use std::f32::consts::PI;
 
 use crate::{
-    Args,
     application::{
         Application,
-        console::{ ConsoleRenderingContext2D, cell::{ Cell, CellStyle } },
+        console::{ ConsoleRenderingContext2D },
         window::context::WindowRenderingContext2D,
     },
     scene::{
         math::matrix::{ RowMat, Transform },
-        renderer::{ SceneRenderer, camera::Camera, light::Light, mesh::{ Mesh, Triangle } },
+        renderer::{ SceneRenderer, camera::Camera, light::{ Color, Light }, mesh::{ Mesh } },
         scene::{ NodeData, NodeId, Scene },
     },
 };
@@ -59,31 +58,30 @@ impl App {
     const CAMERA_MOVEMENT_FAC: f32 = 20.0;
     const CAMERA_ROT_FAC: f32 = (90.0_f32).to_radians();
 
-    fn new_debug() -> Option<Self> {
+    pub fn new_debug() -> Option<Self> {
         let mut scene = Scene::new();
 
         // This loads the teapot mesh
-        let mut teapot = Mesh::import_obj("./examples/utah_teapot.obj").expect(
-            "Unable to load mesh"
-        );
-        teapot.transform_mut(Transform::translation(RowMat::<3>::from_data([[0.0, 2.0, 0.0]])));
+        let mut teapot = Mesh::import("./examples/utah_teapot.obj").expect("Unable to load mesh");
+        teapot.transform_mut(Transform::translation(RowMat::<3>::from_data([[0.0, -1.5, 0.0]])));
         teapot.use_flat_shading();
-
-        // This loads the cube mesh
-        // let mut tris = Vec::<Triangle>::new();
-        // tris.push(Triangle::new([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.5, -1.0]));
-        // tris.push(Triangle::new([0.0, 0.0, 1.0], [0.0, 1.0, 2.0], [2.0, 0.0, 1.0]));
-        // let mut basic_triangle_mesh = Mesh::new(tris);
-        // basic_triangle_mesh.use_flat_shading();
 
         // This inserts the mesh data into the scene tree
         let example_mesh = scene.insert(NodeData::Mesh(teapot));
         let example_node = scene.get_mut(example_mesh)?;
         example_node.props.rotate((15.0f32).to_radians(), &RowMat::axis_x());
 
-        let light = scene.insert(NodeData::Light(Light::new(1.0)));
-        let light_node = scene.get_mut(light)?;
-        light_node.props.translate(RowMat::from_data([[5.0, 20.0, 10.0]]));
+        let light0 = scene.insert(
+            NodeData::Light(Light::new_color(1.0, Color::from_hex(0xf5d97dff)))
+        );
+        let light0_node = scene.get_mut(light0)?;
+        light0_node.props.translate(RowMat::from_data([[5.0, 20.0, 10.0]]));
+
+        let light1 = scene.insert(
+            NodeData::Light(Light::new_color(1.0, Color::from_hex(0x112138ff)))
+        );
+        let light1_node = scene.get_mut(light1)?;
+        light1_node.props.translate(RowMat::from_data([[-5.0, -20.0, -10.0]]));
 
         let camera = scene.insert(NodeData::Camera(Camera::new(1, 1, PI / 6.0, 1.0, 9.0)));
         let c = scene.get_mut(camera)?;
@@ -96,15 +94,30 @@ impl App {
         Some(Self { scene, camera, renderer, appdata })
     }
 
-    fn new_obj_preview(obj_path: String, scale_factor: f32) -> Option<Self> {
+    pub fn new_obj_preview(obj_path: String, scale_factor: Option<f32>) -> Option<Self> {
         let mut scene = Scene::new();
 
-        let Ok(mut imported) = Mesh::import_obj(&obj_path) else {
+        let Ok(mut imported) = Mesh::import(&obj_path) else {
             println!("Unable to load obj file at path \"{}\".", obj_path);
             return None;
         };
         imported.transform_mut(Transform::translation(-imported.mean_triangles_positions()));
-        imported.transform_mut(Transform::scale(RowMat::<3>::from_data([[scale_factor; 3]])));
+
+        let scale = match scale_factor {
+            Some(sf) => sf,
+            None => {
+                const TARGET_RADIUS: f32 = 2.5;
+                let radius = imported.max_vertex_radius(RowMat::<3>::new());
+                if radius > f32::EPSILON {
+                    TARGET_RADIUS / radius
+                } else {
+                    1.0
+                }
+            }
+        };
+
+        imported.transform_mut(Transform::scale(RowMat::<3>::from_data([[scale; 3]])));
+
         imported.use_flat_shading();
 
         // This inserts the mesh data into the scene tree
@@ -125,17 +138,6 @@ impl App {
         let appdata = AppData::new(example_mesh);
 
         Some(Self { scene, camera, renderer, appdata })
-    }
-
-    pub fn new(args: Args) -> Option<Self> {
-        if args.debug {
-            return App::new_debug();
-        } else if let Some(obj_path) = args.inspect {
-            // Process
-            let scale_factor = args.scale_factor.unwrap_or(1.0);
-            return App::new_obj_preview(obj_path, scale_factor);
-        }
-        panic!("Invalid Arguments!");
     }
 
     fn sync_camera_resolution(&mut self, width: usize, height: usize) -> bool {

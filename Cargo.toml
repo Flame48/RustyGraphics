@@ -10,3 +10,18 @@ crossterm = "0.29.0"
 slotmap = "1.1.1"
 softbuffer = "0.4"
 winit = "0.29"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[lib]
+name = "graphics"
+path = "src/lib.rs"
+
+[[bin]]
+name = "graphics-cli"
+path = "src/cli.rs"
+
+[[bin]]
+name = "graphics-view"
+path = "src/view.rs"

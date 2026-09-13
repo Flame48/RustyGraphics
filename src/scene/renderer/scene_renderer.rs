@@ -306,18 +306,22 @@ impl SceneRenderer {
 
         // Draw Meshes
         for (mesh, model_transform) in meshes {
+            let origin = RowMat::<4>::from_data([[0.0, 0.0, 0.0, 1.0]]);
+            let camera_pos_global = (origin * view_transform.reverse).to_uniform();
+            let light_information = lights
+                .iter()
+                .map(|(l, trans)| (*l, (origin * trans.forward).to_uniform()))
+                .collect();
+
             self.rasterize(mesh, model_transform, view_transform, proj_transform, |frag| {
                 DiffuseLightingModel::shade(
                     frag,
                     view_transform,
                     proj_transform,
                     &camera_data,
-                    &lights
+                    camera_pos_global,
+                    &light_information
                 );
-
-                // frag.color[0] = (frag.normal.get(0, 0) * 255.0).round() as u8;
-                // frag.color[1] = (frag.normal.get(0, 1) * 255.0).round() as u8;
-                // frag.color[2] = (frag.normal.get(0, 2) * 255.0).round() as u8;
             });
         }
     }

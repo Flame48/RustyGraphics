@@ -1,4 +1,4 @@
-use std::{ fs, path::Path, str::FromStr };
+use std::{ fs, path::Path };
 
 use crate::scene::math::matrix::{ Matrix, RowMat, Transform };
 
@@ -111,11 +111,27 @@ impl Mesh {
         Self { tris }
     }
 
+    pub fn import(path: impl AsRef<Path>) -> Result<Self, String> {
+        let path = path.as_ref();
+        match path.extension().and_then(|e| e.to_str()) {
+            Some("obj") => Self::import_obj(path),
+            Some("stl") => Self::import_stl(path),
+            _ => Err("Unrecognized file estension for mesh".into()),
+        }
+    }
+
     pub fn import_obj(path: impl AsRef<Path>) -> Result<Self, String> {
         let Ok(contents) = fs::read_to_string(path) else {
             return Err(format!("Unable to open file"));
         };
         Self::parse_obj(&contents)
+    }
+
+    pub fn import_stl(path: impl AsRef<Path>) -> Result<Self, String> {
+        let Ok(contents) = fs::read(path) else {
+            return Err(format!("Unable to open file"));
+        };
+        Self::parse_stl(&contents)
     }
 
     fn parse_row_mat<'a, const N: usize>(
@@ -136,7 +152,7 @@ impl Mesh {
         Ok(out)
     }
 
-    fn parse_face_vertex_indices(from: &str) -> (Option<usize>, Option<usize>, Option<usize>) {
+    fn parse_obj_face_vertex_indices(from: &str) -> (Option<usize>, Option<usize>, Option<usize>) {
         let mut tokens = from.split('/');
 
         let vi = tokens.next().and_then(|s|
@@ -160,7 +176,7 @@ impl Mesh {
         return (vi, ti, ni);
     }
 
-    pub fn parse_obj(obj: &str) -> Result<Self, String> {
+    fn parse_obj(obj: &str) -> Result<Self, String> {
         let mut vertices = Vec::<RowMat<3>>::new();
         let mut normals = Vec::<RowMat<3>>::new();
         let mut tris = Vec::<Triangle>::new();
@@ -190,7 +206,7 @@ impl Mesh {
                     let mut indices = Vec::<(usize, Option<usize>)>::new();
                     while let Some(vertex_info_s) = tokens.next() {
                         let (Some(vi), _, ni) =
-                            Self::parse_face_vertex_indices(vertex_info_s) else {
+                            Self::parse_obj_face_vertex_indices(vertex_info_s) else {
                             continue;
                         };
                         indices.push((vi, ni));
@@ -249,6 +265,140 @@ impl Mesh {
         Ok(Mesh {
             tris: tris,
         })
+    }
+
+    fn parse_stl(stl: &[u8]) -> Result<Self, String> {
+        // First check if the stl data is binary or ascii by checking if the first few bytes spell out solid or not.
+        if Self::is_binary_stl(stl) {
+            Self::parse_stl_binary(stl)
+        } else {
+            let text = std::str
+                ::from_utf8(stl)
+                .map_err(|_| "STL is not valid ASCII text".to_string())?;
+            Self::parse_stl_ascii(text)
+        }
+    }
+
+    fn parse_stl_ascii(stl: &str) -> Result<Self, String> {
+        let mut tris = Vec::new();
+        let mut current_verts = Vec::new();
+        let mut current_normal: Option<[f32; 3]> = None;
+
+        for line in stl.lines() {
+            let line = line.trim();
+
+            if let Some(facet_normal) = line.strip_prefix("facet normal") {
+                let mut it = facet_normal.split_whitespace();
+                let nx: f32 = it
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("Bad Normal")?;
+                let ny: f32 = it
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("Bad Normal")?;
+                let nz: f32 = it
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("Bad Normal")?;
+                // Ensure the normal isn't a 0-normal
+                if
+                    !(
+                        nx.abs() <= f32::EPSILON &&
+                        ny.abs() <= f32::EPSILON &&
+                        nz.abs() <= f32::EPSILON
+                    )
+                {
+                    current_normal = Some([nx, ny, nz]);
+                }
+            } else if let Some(vertex) = line.strip_prefix("vertex") {
+                let mut it = vertex.split_whitespace();
+                let x: f32 = it
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("Bad Vertex")?;
+                let y: f32 = it
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("Bad Vertex")?;
+                let z: f32 = it
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("Bad Vertex")?;
+                current_verts.push([x, y, z]);
+                if current_verts.len() == 3 {
+                    let mut tri = Triangle::new(
+                        current_verts[0],
+                        current_verts[1],
+                        current_verts[2]
+                    );
+                    match current_normal {
+                        Some([nx, ny, nz]) => {
+                            tri.vertex_normals = Matrix::<3, 4>::from_data([
+                                [nx, ny, nz, 0.0],
+                                [nx, ny, nz, 0.0],
+                                [nx, ny, nz, 0.0],
+                            ]);
+                        }
+                        None => tri.use_computed_normals(),
+                    }
+                    tris.push(tri);
+                    current_verts.clear();
+                    current_normal = None;
+                }
+            }
+        }
+
+        Ok(Self::new(tris))
+    }
+
+    fn parse_stl_binary(stl: &[u8]) -> Result<Self, String> {
+        //
+        if stl.len() < 84 {
+            return Err(format!("Invalid Length of File"));
+        }
+
+        let triangle_count = u32::from_le_bytes(stl[80..84].try_into().unwrap()) as usize;
+
+        // 84 Bytes for header and 50 Bytes per triangle
+        let expected_length = 84 + triangle_count * 50;
+        if stl.len() < expected_length {
+            return Err(format!("Invalid Length of File"));
+        }
+
+        let mut tris = Vec::with_capacity(triangle_count);
+        let mut offset = 84_usize;
+
+        for _ in 0..triangle_count {
+            tris.push(Self::parse_stl_binary_triangle(stl, offset)?);
+            offset += 50;
+        }
+
+        return Ok(Self::new(tris));
+    }
+
+    fn parse_stl_binary_triangle(stl: &[u8], o: usize) -> Result<Triangle, String> {
+        let read_f32 = |o_n: usize| f32::from_le_bytes(stl[o_n..o_n + 4].try_into().unwrap());
+        let read_vertex = |o_v: usize| [read_f32(o_v), read_f32(o_v + 4), read_f32(o_v + 8)];
+
+        let v1 = read_vertex(o + 12);
+        let v2 = read_vertex(o + 24);
+        let v3 = read_vertex(o + 36);
+
+        let mut tri = Triangle::new(v1, v2, v3);
+        tri.use_computed_normals();
+        return Ok(tri);
+    }
+
+    fn is_binary_stl(stl: &[u8]) -> bool {
+        if stl.len() < 84 {
+            return false;
+        }
+
+        let triangle_count = u32::from_le_bytes(stl[80..84].try_into().unwrap()) as usize;
+        let expected_len = 84 + triangle_count * 50;
+
+        stl.len() == expected_len
     }
 
     pub fn construct_cube() -> Self {
@@ -347,5 +497,22 @@ impl Mesh {
             acc += tri.center();
         }
         return acc / (self.tris.len() as f32);
+    }
+
+    pub fn max_vertex_radius(&self, from: RowMat<3>) -> f32 {
+        let mut max_dist_sq = 0.0f32;
+
+        for tri in &self.tris {
+            for i in 0..3 {
+                let v = tri.verts.row_mat(i).to_uniform();
+                let d = v - from;
+                let dist_sq = d.x() * d.x() + d.y() * d.y() + d.z() * d.z();
+                if dist_sq > max_dist_sq {
+                    max_dist_sq = dist_sq;
+                }
+            }
+        }
+
+        max_dist_sq.sqrt()
     }
 }

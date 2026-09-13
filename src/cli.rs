@@ -1,9 +1,7 @@
 #[allow(unused)]
 use std::io;
 use clap::Parser;
-
-mod application;
-mod scene;
+use graphics::{ application, scene };
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -21,15 +19,27 @@ struct Args {
     inspect: Option<String>,
 
     /// This is an optional scaling factor to be applied to a model before it get's rendered.
+    /// If omitted, performs auto-scaling
     #[arg(long, value_name = "FACTOR", requires = "inspect")]
     scale_factor: Option<f32>,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let app = scene::App::new(args).expect("App failed to initialize");
+
+    let app = (
+        if args.debug {
+            scene::App::new_debug()
+        } else if let Some(obj_path) = args.inspect {
+            scene::App::new_obj_preview(obj_path, args.scale_factor)
+        } else {
+            panic!("Invalid Arguments!")
+        }
+    ).expect("App failed to initialize");
+
     let mut runner = application::ConsoleRunner
         ::new(app)
         .expect("Unable to initialize application runner");
+
     runner.run()
 }
