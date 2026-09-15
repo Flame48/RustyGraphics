@@ -1,8 +1,9 @@
 use crate::scene::{
-    math::{ matrix::RowMat, transforms::Transform },
-    renderer::{ fragment::Fragment, frame_buffer::FrameBuffer },
     light::{ DiffuseLightingModel, LightingModel },
+    math::{ matrix::RowMat, transforms::Transform },
     mesh::Mesh,
+    renderer::{ fragment::Fragment, frame_buffer::FrameBuffer },
+    sampler::{ SamplerTarget },
     scene::{ NodeData, Scene },
 };
 
@@ -64,6 +65,10 @@ impl SceneRenderer {
             let n1 = tri.vertex_normals.row_mat(0);
             let n2 = tri.vertex_normals.row_mat(1);
             let n3 = tri.vertex_normals.row_mat(2);
+
+            let uv1 = tri.vertex_uvs.row_mat(0);
+            let uv2 = tri.vertex_uvs.row_mat(1);
+            let uv3 = tri.vertex_uvs.row_mat(2);
 
             let to_screen = |p: RowMat<4>| -> (RowMat<2>, f32) {
                 (
@@ -147,6 +152,7 @@ impl SceneRenderer {
                         view_space_v3 * l3
                     ).to_uniform();
                     let normal = (n1 * l1 + n2 * l2 + n3 * l3).to_uniform();
+                    let uv = uv1 * l1 + uv2 * l2 + uv3 * l3;
 
                     let mut frag = Fragment::new(
                         xi,
@@ -154,8 +160,13 @@ impl SceneRenderer {
                         depth,
                         [0xff, 0xff, 0xff, 0xff],
                         position,
-                        normal
+                        normal,
+                        uv
                     );
+
+                    if let Some(tex) = &mesh.texture_map {
+                        frag.color = tex.sample_uv(frag.uv);
+                    }
 
                     // Edit color based on normal
                     process_fragment(&mut frag);
@@ -193,12 +204,12 @@ impl SceneRenderer {
         };
 
         let draw_edge = |
-            a: (RowMat<2>, f32, RowMat<4>, RowMat<3>),
-            b: (RowMat<2>, f32, RowMat<4>, RowMat<3>),
+            a: (RowMat<2>, f32, RowMat<4>, RowMat<3>, RowMat<2>),
+            b: (RowMat<2>, f32, RowMat<4>, RowMat<3>, RowMat<2>),
             fb: &mut FrameBuffer
         | {
-            let (p0, z0, v0, n0) = a;
-            let (p1, z1, v1, n1) = b;
+            let (p0, z0, v0, n0, uv0) = a;
+            let (p1, z1, v1, n1, uv1) = b;
 
             let x0 = p0.x().round() as i32;
             let y0 = p0.y().round() as i32;
@@ -221,13 +232,15 @@ impl SceneRenderer {
                     let depth = z0 + (z1 - z0) * t;
                     let normal = n0 + (n1 - n0) * t;
                     let position = (v0 + (v1 - v0) * t).to_uniform();
+                    let uv = uv0 + (uv1 - uv0) * t;
                     let frag = Fragment::new(
                         x as u32,
                         y as u32,
                         depth,
                         [0xff, 0xff, 0xff, 0xff],
                         position,
-                        normal
+                        normal,
+                        uv
                     );
                     fb.draw_fragment(&frag);
                 }
@@ -260,6 +273,10 @@ impl SceneRenderer {
             let n2 = tri.vertex_normals.row_mat(1).to_uniform();
             let n3 = tri.vertex_normals.row_mat(2).to_uniform();
 
+            let uv1 = tri.vertex_uvs.row_mat(0);
+            let uv2 = tri.vertex_uvs.row_mat(1);
+            let uv3 = tri.vertex_uvs.row_mat(2);
+
             let (p1, z1) = to_screen(v1);
             let (p2, z2) = to_screen(v2);
             let (p3, z3) = to_screen(v3);
@@ -271,9 +288,9 @@ impl SceneRenderer {
                 continue;
             }
 
-            draw_edge((p1, z1, v1, n1), (p2, z2, v2, n2), &mut self.fb);
-            draw_edge((p2, z2, v2, n2), (p3, z3, v3, n3), &mut self.fb);
-            draw_edge((p3, z3, v3, n3), (p1, z1, v1, n1), &mut self.fb);
+            draw_edge((p1, z1, v1, n1, uv1), (p2, z2, v2, n2, uv2), &mut self.fb);
+            draw_edge((p2, z2, v2, n2, uv2), (p3, z3, v3, n3, uv3), &mut self.fb);
+            draw_edge((p3, z3, v3, n3, uv3), (p1, z1, v1, n1, uv1), &mut self.fb);
         }
     }
 

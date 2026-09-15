@@ -8,6 +8,7 @@ pub struct Fragment {
     pub color: [u8; 4],
     pub position: RowMat<3>,
     pub normal: RowMat<3>,
+    pub uv: RowMat<2>,
 }
 
 impl Fragment {
@@ -17,8 +18,9 @@ impl Fragment {
         depth: f32,
         color: [u8; 4],
         position: RowMat<3>,
-        normal: RowMat<3>
+        normal: RowMat<3>,
+        uv: RowMat<2>
     ) -> Self {
-        Self { screen_x: sx, screen_y: sy, depth, color, position, normal }
+        Self { screen_x: sx, screen_y: sy, depth, color, position, normal, uv }
     }
 }

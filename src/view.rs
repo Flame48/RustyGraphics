@@ -10,7 +10,9 @@ fn main() -> anyhow::Result<()> {
         return Err(Error::msg("Missing Argument!"));
     };
 
-    let app = scene::App::new_obj_preview(path.clone(), None).expect("App failed to initialize");
+    let app = scene::App
+        ::new_obj_preview(path.clone(), None, None)
+        .expect("App failed to initialize");
     let mut runner = application::ConsoleRunner
         ::new(app)
         .expect("Unable to initialize application runner");

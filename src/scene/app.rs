@@ -3,16 +3,18 @@ use std::f32::consts::PI;
 use crate::{
     application::{
         Application,
-        console::{ ConsoleRenderingContext2D },
+        console::ConsoleRenderingContext2D,
         window::context::WindowRenderingContext2D,
     },
     scene::{
-        math::{ matrix::RowMat, transforms::Transform },
         camera::Camera,
         light::{ Color, Light },
+        math::{ matrix::RowMat, transforms::Transform },
         mesh::Mesh,
-        renderer::{ SceneRenderer },
+        renderer::SceneRenderer,
+        sampler::Sampler,
         scene::{ NodeData, NodeId, Scene },
+        texture::ImageTexture,
     },
 };
 
@@ -64,10 +66,13 @@ impl App {
     pub fn new_debug() -> Option<Self> {
         let mut scene = Scene::new();
 
+        let checker_texture = ImageTexture::import("./docs/images/Checker Texture.png").unwrap();
+
         // This loads the teapot mesh
         let mut teapot = Mesh::import("./examples/utah_teapot.obj").expect("Unable to load mesh");
         teapot.transform_mut(Transform::translation(RowMat::<3>::from_data([[0.0, -1.5, 0.0]])));
         teapot.use_flat_shading();
+        teapot.set_texture(Sampler::maybe(Some(checker_texture)));
 
         // This inserts the mesh data into the scene tree
         let example_mesh = scene.insert(NodeData::Mesh(teapot));
@@ -97,14 +102,25 @@ impl App {
         Some(Self { scene, camera, renderer, appdata })
     }
 
-    pub fn new_obj_preview(obj_path: String, scale_factor: Option<f32>) -> Option<Self> {
+    pub fn new_obj_preview(
+        obj_path: String,
+        color_texture_path: Option<String>,
+        scale_factor: Option<f32>
+    ) -> Option<Self> {
         let mut scene = Scene::new();
+
+        let color_texture = color_texture_path.and_then(|p| ImageTexture::import(p).ok());
 
         let Ok(mut imported) = Mesh::import(&obj_path) else {
             println!("Unable to load obj file at path \"{}\".", obj_path);
             return None;
         };
         imported.transform_mut(Transform::translation(-imported.mean_triangles_positions()));
+        if let Some(color_texture) = color_texture {
+            imported.set_texture(Some(Sampler::new(color_texture)));
+        } else {
+            imported.set_texture(Some(Sampler::value([0xff; 4])));
+        }
 
         let scale = match scale_factor {
             Some(sf) => sf,

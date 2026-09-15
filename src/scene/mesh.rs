@@ -1,11 +1,12 @@
 use std::{ fs, path::Path };
 
-use crate::scene::math::{ matrix::{ Matrix, RowMat }, transforms::Transform };
+use crate::scene::{ math::{ matrix::{ Matrix, RowMat }, transforms::Transform }, sampler::Sampler };
 
 #[derive(Clone, Copy)]
 pub struct Triangle {
     pub verts: Matrix<3, 4>,
     pub vertex_normals: Matrix<3, 4>,
+    pub vertex_uvs: Matrix<3, 2>,
 }
 
 impl Triangle {
@@ -16,6 +17,7 @@ impl Triangle {
                 data: [to_homogeneous(p1), to_homogeneous(p2), to_homogeneous(p3)],
             },
             vertex_normals: Matrix::<3, 4>::new(),
+            vertex_uvs: Matrix::<3, 2>::new(),
         }
     }
 
@@ -25,6 +27,7 @@ impl Triangle {
         Self {
             verts: self.verts,
             vertex_normals: self.vertex_normals,
+            vertex_uvs: self.vertex_uvs,
         }
     }
 
@@ -91,11 +94,16 @@ impl Triangle {
 #[derive(Clone)]
 pub struct Mesh {
     tris: Vec<Triangle>,
+    pub texture_map: Option<Sampler>,
 }
 
 impl Mesh {
     pub fn new(tris: Vec<Triangle>) -> Self {
-        Self { tris }
+        Self { tris, texture_map: None }
+    }
+
+    pub fn set_texture(&mut self, texture_map: Option<Sampler>) {
+        self.texture_map = texture_map;
     }
 
     pub fn import(path: impl AsRef<Path>) -> Result<Self, String> {
@@ -165,6 +173,7 @@ impl Mesh {
 
     fn parse_obj(obj: &str) -> Result<Self, String> {
         let mut vertices = Vec::<RowMat<3>>::new();
+        let mut uvs = Vec::<RowMat<2>>::new();
         let mut normals = Vec::<RowMat<3>>::new();
         let mut tris = Vec::<Triangle>::new();
 
@@ -184,19 +193,23 @@ impl Mesh {
                     // Parse vertex
                     vertices.push(Self::parse_row_mat::<3>(&mut tokens)?);
                 }
+                "vt" => {
+                    // Parse vertex
+                    uvs.push(Self::parse_row_mat::<2>(&mut tokens)?);
+                }
                 "vn" => {
                     // Parse vertex
                     normals.push(Self::parse_row_mat::<3>(&mut tokens)?);
                 }
                 "f" => {
                     // Parse triangle
-                    let mut indices = Vec::<(usize, Option<usize>)>::new();
+                    let mut indices = Vec::<(usize, Option<usize>, Option<usize>)>::new();
                     while let Some(vertex_info_s) = tokens.next() {
-                        let (Some(vi), _, ni) =
+                        let (Some(vi), ti, ni) =
                             Self::parse_obj_face_vertex_indices(vertex_info_s) else {
                             continue;
                         };
-                        indices.push((vi, ni));
+                        indices.push((vi, ti, ni));
                     }
 
                     if indices.len() < 3 {
@@ -205,9 +218,9 @@ impl Mesh {
 
                     // Note that indices can contain more than 3 vertices. As such we perform fan interpolaton.
                     for i in 1..indices.len() - 1 {
-                        let (v0, n0) = indices[0];
-                        let (v1, n1) = indices[i];
-                        let (v2, n2) = indices[i + 1];
+                        let (v0, t0, n0) = indices[0];
+                        let (v1, t1, n1) = indices[i];
+                        let (v2, t2, n2) = indices[i + 1];
 
                         let get_v = |vi: usize|
                             vertices.get(vi).ok_or_else(|| format!("vertex index out of range"));
@@ -240,6 +253,20 @@ impl Mesh {
                             _ => tri.use_computed_normals(),
                         }
 
+                        if let (Some(t0), Some(t1), Some(t2)) = (t0, t1, t2) {
+                            let get_t = |ti: usize|
+                                uvs.get(ti).ok_or_else(|| format!("uv index out of range"));
+
+                            let t0 = get_t(t0)?;
+                            let t1 = get_t(t1)?;
+                            let t2 = get_t(t2)?;
+                            tri.vertex_uvs = Matrix::<3, 2>::from_data([
+                                t0.row(0),
+                                t1.row(0),
+                                t2.row(0),
+                            ]);
+                        }
+
                         tris.push(tri);
                     }
                 }
@@ -249,9 +276,7 @@ impl Mesh {
             }
         }
 
-        Ok(Mesh {
-            tris: tris,
-        })
+        Ok(Mesh::new(tris))
     }
 
     fn parse_stl(stl: &[u8]) -> Result<Self, String> {
@@ -420,7 +445,7 @@ impl Mesh {
             .map(|&[a, b, c]| Triangle::new(v[a], v[b], v[c]))
             .collect();
 
-        Self { tris }
+        Self::new(tris)
     }
 
     pub fn transform(&self, transform: Transform) -> Self {
@@ -428,7 +453,7 @@ impl Mesh {
             .iter()
             .map(|t| t.transform(transform))
             .collect();
-        Self { tris }
+        Self { tris, texture_map: self.texture_map.clone() }
     }
 
     pub fn transform_geometry(&self, transform: Transform) -> Self {
@@ -436,7 +461,7 @@ impl Mesh {
             .iter()
             .map(|t| t.transform_geometry(transform))
             .collect();
-        Self { tris }
+        Self { tris, texture_map: self.texture_map.clone() }
     }
 
     pub fn transform_normals(&self, transform: Transform) -> Self {
@@ -444,7 +469,7 @@ impl Mesh {
             .iter()
             .map(|t| t.transform_normals(transform))
             .collect();
-        Self { tris }
+        Self { tris, texture_map: self.texture_map.clone() }
     }
 
     pub fn transform_mut(&mut self, transform: Transform) {
