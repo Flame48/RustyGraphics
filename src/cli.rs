@@ -18,8 +18,8 @@ struct Args {
     #[arg(short, long, value_name = "FILE")]
     inspect: Option<String>,
 
-    // Optional texture to use for the color channels of the object surface during model inspection.
-    // By default, renders object with a white texture.
+    /// Optional texture to use for the color channels of the object surface during model inspection.
+    /// By default, renders object with a white texture.
     #[arg(short, long, value_name = "FILE", requires = "inspect")]
     color_texture: Option<String>,
 

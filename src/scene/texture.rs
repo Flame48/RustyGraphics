@@ -5,8 +5,8 @@ use crate::scene::{ renderer::RGBA, sampler::SamplerTarget };
 
 pub struct ImageTexture {
     data: Vec<u8>,
-    pub width: usize,
-    pub height: usize,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl ImageTexture {
@@ -15,22 +15,22 @@ impl ImageTexture {
             .map_err(|e| format!("Unable to open texture file: {}", e.to_string()))?
             .decode()
             .map_err(|_| format!("Unable to decode texture file"))?;
-        let (width_u32, height_u32) = im.dimensions();
+        let (width, height) = im.dimensions();
         let raw = im.to_rgba8().into_raw();
 
-        Ok(Self { data: raw, width: width_u32 as usize, height: height_u32 as usize })
+        // TODO: Store texels in a more cache efficient format
+        // See (https://fgiesen.wordpress.com/2011/01/17/texture-tiling-and-swizzling/)
+
+        Ok(Self { data: raw, width, height })
     }
 }
 
 impl SamplerTarget for ImageTexture {
     fn sample(&self, u: f32, v: f32) -> RGBA {
-        let xi: usize = ((u * (self.width as f32)).round() as usize).clamp(0, self.width - 1);
-        let yi: usize = (((1.0 - v) * (self.height as f32)).round() as usize).clamp(
-            0,
-            self.height - 1
-        );
+        let xi: u32 = ((u * (self.width as f32)).round() as u32).clamp(0, self.width - 1);
+        let yi: u32 = (((1.0 - v) * (self.height as f32)).round() as u32).clamp(0, self.height - 1);
 
-        let i = (yi * self.width + xi) * 4;
+        let i = ((yi * self.width + xi) * 4) as usize;
 
         self.data[i..i + 4].try_into().expect("Unable to sample texture!")
     }

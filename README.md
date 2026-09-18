@@ -35,11 +35,12 @@ You can find instructions on setup and controls [here](#setup).
 - Computed flat normals
 - Very Basic Lighting
 
-### Soon to be Added
+### Currently Working On
 
-- Computed normals
-- Texture coordinates
-- Basic lighting models
+- Texture Support
+- Better lighting models
+- Better materials
+- Scene imports and exports
 
 ## Setup
 
@@ -54,10 +55,12 @@ cargo build --release
 For instruction on how to use run,
 
 ```bash
-cargo run --release -- -h
+cargo run --release --bin graphics-cli -- -h
 ```
 
-You can also run the exe file created in `./target/release/graphics.exe` with the specified flags.
+You can also run the exe file created in `./target/release/graphics-cli` with the specified flags.
+
+There is also a separate build called `graphics-view` that can be used by windows to handle the opening of `.obj` and `.stl` files. Simply right click on a `.obj` / `.stl` file, select "Open With" and select the `target/release/graphics-view.exe`.
 
 ### Controls
 
