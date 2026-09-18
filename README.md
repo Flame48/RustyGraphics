@@ -18,7 +18,11 @@ There's now also support for rendering in a window as opposed to the terminal fo
 
 ![Spinning Teapot Wireframe in Window example](<docs/images/Teapot Wireframe Demo Window.png>)
 
-You can find instructions on setup and controls [here](#setup).
+Currently, I am working on adding support for texture sampling with more complex scenes. Here is a sneak peak so far,
+
+![Teapot with Checkered Texture applied and multiple colored lights](<docs/images/Teapot Lighting and Texture Development Demo.png>)
+
+You can find instructions on the current setup and controls [here](#setup).
 
 ## Features
 
@@ -62,7 +66,7 @@ You can also run the exe file created in `./target/release/graphics-cli` with th
 
 There is also a separate build called `graphics-view` that can be used by windows to handle the opening of `.obj` and `.stl` files. Simply right click on a `.obj` / `.stl` file, select "Open With" and select the `target/release/graphics-view.exe`.
 
-### Controls
+### Camera Controls
 
 | Key         | Action                                                |
 | ----------- | ----------------------------------------------------- |
